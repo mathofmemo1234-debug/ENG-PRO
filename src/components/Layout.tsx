@@ -16,7 +16,6 @@ import {
   X,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { CURRICULA_META } from '../data/curricula';
 import { CurriculumId, TranslationMode } from '../data/types';
 import {
   ActiveSpeechEngine,
@@ -281,9 +280,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <div>
                 <div className="font-extrabold text-sm sm:text-base text-slate-900 leading-tight">
                   منصة إتقان الإنجليزية
-                </div>
-                <div className="text-[11px] font-semibold text-slate-500">
-                  {CURRICULA_META[activeCurriculum].paletteLabel}
                 </div>
               </div>
             </button>
@@ -637,6 +633,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* Active Workspace */}
         <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
+
+      {/* Platform Footer */}
+      <footer className="mt-auto border-t border-[var(--border-soft)] bg-white/90 backdrop-blur-xs py-3.5 px-3 text-center">
+        <p
+          className="inline-block whitespace-nowrap text-[12px] sm:text-sm md:text-base font-extrabold tracking-wide bg-clip-text text-transparent"
+          style={{
+            backgroundImage: 'var(--hero-gradient)',
+            fontFamily: "'Tajawal', 'Cairo', sans-serif",
+          }}
+        >
+          تصميم / أ محمد عبدالله جمعة ....ج / 0545841974
+        </p>
+      </footer>
 
       <QrModal isOpen={qrModalOpen} onClose={() => setQrModalOpen(false)} />
       <PwaInstallModal
