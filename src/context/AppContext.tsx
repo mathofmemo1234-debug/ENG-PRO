@@ -6,6 +6,7 @@ import {
   UserProgress,
   ViewRoute,
 } from '../data/types';
+import { DEFAULT_SPEECH_ACCENT, DEFAULT_SPEECH_RATE } from '../utils/speech';
 
 const STORAGE_PROGRESS_KEY = 'eng_mastery_progress_v1';
 const STORAGE_DISCUSSIONS_KEY = 'eng_mastery_discussions_v1';
@@ -93,8 +94,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return 'bilingual';
   });
 
-  const [speechRate, setSpeechRate] = useState<number>(0.95);
-  const [speechAccent, setSpeechAccent] = useState<'en-GB' | 'en-US'>('en-GB');
+  const [speechRate, setSpeechRate] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_PREFS_KEY);
+      if (saved) {
+        const parsedRate = Number(JSON.parse(saved).speechRate);
+        if (Number.isFinite(parsedRate) && parsedRate >= 0.25 && parsedRate <= 1.5) {
+          return parsedRate;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    return DEFAULT_SPEECH_RATE;
+  });
+
+  const [speechAccent, setSpeechAccent] = useState<'en-GB' | 'en-US'>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_PREFS_KEY);
+      if (saved) {
+        const parsedAccent = JSON.parse(saved).speechAccent;
+        if (parsedAccent === 'en-US' || parsedAccent === 'en-GB') {
+          return parsedAccent;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    return DEFAULT_SPEECH_ACCENT;
+  });
   const [route, setRouteState] = useState<ViewRoute>({ page: 'home' });
 
   const setRoute = (nextRoute: ViewRoute) => {
@@ -143,12 +171,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       localStorage.setItem(
         STORAGE_PREFS_KEY,
-        JSON.stringify({ activeCurriculum, translationMode })
+        JSON.stringify({ activeCurriculum, translationMode, speechRate, speechAccent })
       );
     } catch {
       /* ignore */
     }
-  }, [activeCurriculum, translationMode]);
+  }, [activeCurriculum, translationMode, speechRate, speechAccent]);
 
   useEffect(() => {
     try {

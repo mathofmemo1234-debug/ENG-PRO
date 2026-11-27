@@ -14,6 +14,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { CURRICULA_META } from '../data/curricula';
 import { CurriculumId, TranslationMode } from '../data/types';
+import { SPEECH_RATE_OPTIONS } from '../utils/speech';
 import { CurriculumTreeSidebar } from './CurriculumTreeSidebar';
 
 interface LayoutProps {
@@ -164,18 +165,24 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 type="button"
                 onClick={() => setSpeechAccent(speechAccent === 'en-GB' ? 'en-US' : 'en-GB')}
                 className="px-1.5 py-0.5 rounded bg-white text-slate-700 hover:text-[var(--brand-primary)] cursor-pointer"
-                title="تبديل اللكنة البريطانية / الأمريكية"
+                title="تبديل اللكنة الأمريكية (US) / البريطانية (UK)"
               >
                 {speechAccent === 'en-GB' ? 'UK' : 'US'}
               </button>
-              <button
-                type="button"
-                onClick={() => setSpeechRate(speechRate === 0.95 ? 0.72 : 0.95)}
-                className="px-1.5 py-0.5 rounded bg-white text-slate-700 hover:text-[var(--brand-primary)] cursor-pointer"
-                title="تبديل سرعة النطق"
+              <select
+                dir="ltr"
+                aria-label="سرعة النطق"
+                title="اختيار سرعة النطق (0.25x - 1.50x)"
+                value={speechRate}
+                onChange={(e) => setSpeechRate(Number(e.target.value))}
+                className="px-1.5 py-0.5 rounded bg-white text-slate-700 hover:text-[var(--brand-primary)] cursor-pointer border-0 outline-none"
               >
-                {speechRate === 0.95 ? '1x' : '0.7x'}
-              </button>
+                {SPEECH_RATE_OPTIONS.map((rate) => (
+                  <option key={rate} value={rate}>
+                    {rate.toFixed(2)}x
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* XP & Streak Pill */}

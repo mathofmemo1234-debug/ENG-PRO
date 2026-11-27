@@ -1,3 +1,7 @@
+export const SPEECH_RATE_OPTIONS = [0.25, 0.5, 0.75, 1, 1.25, 1.5] as const;
+export const DEFAULT_SPEECH_RATE = 1;
+export const DEFAULT_SPEECH_ACCENT: 'en-US' | 'en-GB' = 'en-US';
+
 export interface SpeakOptions {
   rate?: number;
   accent?: 'en-GB' | 'en-US';
@@ -22,14 +26,17 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
   }
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
-  const accent = opts.accent ?? 'en-GB';
+  const accent = opts.accent ?? DEFAULT_SPEECH_ACCENT;
+  const clampedRate = Math.min(1.5, Math.max(0.25, opts.rate ?? DEFAULT_SPEECH_RATE));
   utterance.lang = accent;
-  utterance.rate = opts.rate ?? 0.95;
+  utterance.rate = clampedRate;
   utterance.pitch = 1.0;
 
+  const targetLang = accent.toLowerCase();
   const voices = window.speechSynthesis.getVoices();
   const preferred =
-    voices.find((v) => v.lang.toLowerCase() === accent.toLowerCase()) ??
+    voices.find((v) => v.lang.toLowerCase().replace('_', '-') === targetLang) ??
+    voices.find((v) => v.lang.toLowerCase().replace('_', '-').startsWith(targetLang)) ??
     voices.find((v) => v.lang.toLowerCase().startsWith('en'));
   if (preferred) {
     utterance.voice = preferred;
