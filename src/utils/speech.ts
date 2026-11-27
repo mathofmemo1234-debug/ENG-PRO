@@ -88,7 +88,6 @@ const AUDIO_UNAVAILABLE_MESSAGE =
 let cachedVoices: SpeechSynthesisVoice[] = [];
 let voiceListenerBound = false;
 let sharedAudioEl: ExtendedAudioElement | null = null;
-let sharedAudioCtx: AudioContext | null = null;
 let audioActivated = false;
 let sessionMobileEngine: ActiveSpeechEngine | null = null;
 
@@ -113,10 +112,10 @@ function clearTimers(): void {
   }
 }
 
-export function isMobileDevice(): boolean {
+export function isIOSDevice(): boolean {
   if (typeof navigator === 'undefined') return false;
   const ua = navigator.userAgent || '';
-  if (/Android|iPhone|iPad|iPod|Mobile|CriOS|FxiOS|Opera Mini|IEMobile/i.test(ua)) {
+  if (/iPhone|iPad|iPod/i.test(ua)) {
     return true;
   }
   // iPadOS 13+ reports Macintosh in UA with maxTouchPoints > 1
@@ -124,6 +123,13 @@ export function isMobileDevice(): boolean {
     return true;
   }
   return false;
+}
+
+export function isMobileDevice(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  if (isIOSDevice()) return true;
+  const ua = navigator.userAgent || '';
+  return /Android|Mobile|CriOS|FxiOS|Opera Mini|IEMobile/i.test(ua);
 }
 
 export function getSpeechEngineMode(): SpeechEngineMode {
@@ -178,32 +184,6 @@ function getSharedAudio(): ExtendedAudioElement | null {
   return sharedAudioEl;
 }
 
-function unlockAudioContext(): void {
-  if (typeof window === 'undefined') return;
-  const AudioCtx =
-    window.AudioContext ||
-    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioCtx) return;
-
-  try {
-    if (!sharedAudioCtx) {
-      sharedAudioCtx = new AudioCtx();
-    }
-    if (sharedAudioCtx.state === 'suspended') {
-      void sharedAudioCtx.resume().catch(() => {
-        /* ignore */
-      });
-    }
-    const buffer = sharedAudioCtx.createBuffer(1, 1, 22050);
-    const source = sharedAudioCtx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(sharedAudioCtx.destination);
-    source.start(0);
-  } catch {
-    /* ignore */
-  }
-}
-
 function refreshVoices(): SpeechSynthesisVoice[] {
   if (!isSpeechSynthesisSupported()) {
     return [];
@@ -217,24 +197,6 @@ function refreshVoices(): SpeechSynthesisVoice[] {
     /* ignore */
   }
   return cachedVoices;
-}
-
-function primeWebSpeechSilently(accent: AccentCode): void {
-  if (!isSpeechSynthesisSupported()) return;
-  try {
-    const synth = window.speechSynthesis;
-    if (synth.paused) {
-      synth.resume();
-    }
-    refreshVoices();
-    const silentUtterance = new SpeechSynthesisUtterance('');
-    silentUtterance.lang = accent;
-    silentUtterance.volume = 0;
-    silentUtterance.rate = 1;
-    synth.speak(silentUtterance);
-  } catch {
-    /* ignore */
-  }
 }
 
 function ensureVoiceListener(): void {
@@ -359,7 +321,7 @@ function scoreVoice(voice: SpeechSynthesisVoice, accent: AccentCode): number {
     score += 40;
   }
   if (voice.localService) {
-    score += 15;
+    score += 50;
   }
   if (voice.default && exactTargets.some((t) => lang.startsWith(t))) {
     score += 5;
@@ -434,7 +396,6 @@ function runSpeak(
 ): void {
   ensureVoiceListener();
   stopSpeech();
-  unlockAudioContext();
 
   const accent: AccentCode = opts.accent ?? DEFAULT_SPEECH_ACCENT;
   const clampedRate = Math.min(1.5, Math.max(0.25, opts.rate ?? DEFAULT_SPEECH_RATE));
@@ -446,6 +407,7 @@ function runSpeak(
   }
 
   const mode = engineOverride ?? getSpeechEngineMode();
+  const ios = isIOSDevice();
   const mobile = isMobileDevice();
   const isOnline = typeof navigator === 'undefined' ? true : navigator.onLine !== false;
   const sessionId = activeSessionId;
@@ -750,12 +712,11 @@ function runSpeak(
   };
 
   if (mode === 'device') {
-    playViaWebSpeech(0, isOnline);
+    playViaWebSpeech(0, !ios && isOnline);
     return;
   }
 
   if (mode === 'cloud') {
-    primeWebSpeechSilently(accent);
     playViaHtmlAudio(0, (failedIdx) => {
       if (isSpeechSynthesisSupported()) {
         playViaWebSpeech(failedIdx, false);
@@ -767,6 +728,16 @@ function runSpeak(
   }
 
   // 'auto' mode
+  if (ios) {
+    // iOS AVPlayer rejects chunked MP3 streams without byte-range support; synchronous speechSynthesis inside user tap works reliably.
+    if (isSpeechSynthesisSupported()) {
+      playViaWebSpeech(0, false);
+    } else {
+      playViaHtmlAudio(0, notifyFailure);
+    }
+    return;
+  }
+
   if (sessionMobileEngine === 'cloud' && isOnline) {
     playViaHtmlAudio(0, (failedIdx) => {
       if (isSpeechSynthesisSupported()) {
@@ -787,10 +758,6 @@ function runSpeak(
     if (!isOnline) {
       playViaWebSpeech(0, false);
       return;
-    }
-
-    if (!audioActivated) {
-      primeWebSpeechSilently(accent);
     }
 
     playViaHtmlAudio(0, (failedIdx) => {
@@ -816,11 +783,14 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
 }
 
 export function activateMobileAudio(opts: SpeakOptions = {}): void {
-  unlockAudioContext();
   const mode = getSpeechEngineMode();
   const isOnline = typeof navigator === 'undefined' ? true : navigator.onLine !== false;
-  const preferredMode: SpeechEngineMode = mode === 'auto' && isOnline ? 'cloud' : mode;
-  runSpeak('Audio is ready.', opts, preferredMode, mode === 'auto');
+  if (mode === 'auto') {
+    const preferredMode: SpeechEngineMode = isIOSDevice() || !isOnline ? 'device' : 'cloud';
+    runSpeak('Audio is ready.', opts, preferredMode, true);
+    return;
+  }
+  runSpeak('Audio is ready.', opts, mode, false);
 }
 
 export function normalizeEnglish(text: string): string {

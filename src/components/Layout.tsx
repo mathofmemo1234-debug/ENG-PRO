@@ -22,6 +22,7 @@ import {
   SpeechEngineMode,
   activateMobileAudio,
   getSpeechEngineMode,
+  isIOSDevice,
   isMobileDevice,
   setSpeechEngineMode,
   speakEnglish,
@@ -56,6 +57,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [engineMode, setEngineMode] = useState<SpeechEngineMode>(() => getSpeechEngineMode());
   const [activeEngine, setActiveEngine] = useState<ActiveSpeechEngine | null>(null);
   const [isMobile] = useState<boolean>(() => isMobileDevice());
+  const [isIOS] = useState<boolean>(() => isIOSDevice());
 
   const handleTestAudio = () => {
     if (testingAudio) {
@@ -387,6 +389,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </button>
               </div>
             </div>
+          )}
+          {isIOS && (
+            <p className="mt-1.5 text-[11px] font-bold text-slate-500 text-center">
+              على الآيفون/الآيباد: تأكد أن مفتاح الصامت الجانبي مغلق ومستوى الصوت مرتفع
+            </p>
           )}
         </div>
 
