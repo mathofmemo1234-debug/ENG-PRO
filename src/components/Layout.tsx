@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   BookOpen,
   CheckCircle2,
+  Download,
   Flame,
   GraduationCap,
   Languages,
   Menu,
   Presentation,
+  QrCode,
   RefreshCw,
   Sparkles,
   Trophy,
@@ -30,6 +32,12 @@ import {
   stopSpeech,
 } from '../utils/speech';
 import { CurriculumTreeSidebar } from './CurriculumTreeSidebar';
+import { PwaInstallModal, QrModal } from './PwaAndQrModals';
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -61,6 +69,64 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [activeEngine, setActiveEngine] = useState<ActiveSpeechEngine | null>(null);
   const [isMobile] = useState<boolean>(() => isMobileDevice());
   const [isIOS] = useState<boolean>(() => isIOSDevice());
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isStandalone, setIsStandalone] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const nav = navigator as Navigator & { standalone?: boolean };
+    return (
+      window.matchMedia?.('(display-mode: standalone)').matches === true || nav.standalone === true
+    );
+  });
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [installModalOpen, setInstallModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    };
+    const onAppInstalled = () => {
+      setDeferredPrompt(null);
+      setIsStandalone(true);
+      setInstallModalOpen(false);
+    };
+    const onOpenInstallEvent = () => {
+      setInstallModalOpen(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+    window.addEventListener('appinstalled', onAppInstalled);
+    window.addEventListener('eng-open-pwa-install', onOpenInstallEvent);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+      window.removeEventListener('appinstalled', onAppInstalled);
+      window.removeEventListener('eng-open-pwa-install', onOpenInstallEvent);
+    };
+  }, []);
+
+  const handleNativeInstall = async () => {
+    if (!deferredPrompt) return;
+    try {
+      await deferredPrompt.prompt();
+      const choice = await deferredPrompt.userChoice;
+      if (choice.outcome === 'accepted') {
+        setIsStandalone(true);
+        setInstallModalOpen(false);
+      }
+      setDeferredPrompt(null);
+    } catch {
+      /* keep modal open as manual fallback */
+    }
+  };
+
+  const handleInstallButtonClick = () => {
+    if (deferredPrompt) {
+      void handleNativeInstall();
+      return;
+    }
+    setInstallModalOpen(true);
+  };
 
   const handleTestAudio = () => {
     if (testingAudio) {
@@ -373,6 +439,33 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 {progress.streakDays}
               </span>
             </button>
+
+            {/* PWA Install & Vercel QR Code Buttons */}
+            <button
+              type="button"
+              onClick={handleInstallButtonClick}
+              aria-label="تثبيت التطبيق"
+              title="تثبيت المنصة كتطبيق PWA على جهازك"
+              className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-extrabold border transition cursor-pointer ${
+                isStandalone
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                  : 'bg-[var(--brand-primary-soft)] border-[var(--border-soft)] text-[var(--brand-primary-dark)] hover:opacity-90'
+              }`}
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>{isStandalone ? 'مثبّت ✓' : 'تثبيت التطبيق'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setQrModalOpen(true)}
+              aria-label="باركود المنصة"
+              title="عرض باركود فتح المنصة على Vercel"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-extrabold hover:bg-slate-800 transition cursor-pointer"
+            >
+              <QrCode className="w-3.5 h-3.5" />
+              <span>الباركود</span>
+            </button>
           </div>
         </div>
 
@@ -471,9 +564,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               </div>
             </div>
           )}
-          {isIOS && (
+          {isIOS && speechGender === 'male' && (
             <p className="mt-1.5 text-[11px] font-bold text-slate-500 text-center">
-              على الآيفون/الآيباد: تأكد أن مفتاح الصامت الجانبي مغلق ومستوى الصوت مرتفع
+              على الآيفون/الآيباد: لصوت الذكر تأكد أن مفتاح الصامت الجانبي مغلق ومستوى الصوت مرتفع
             </p>
           )}
         </div>
@@ -532,6 +625,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* Active Workspace */}
         <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
+
+      <QrModal isOpen={qrModalOpen} onClose={() => setQrModalOpen(false)} />
+      <PwaInstallModal
+        isOpen={installModalOpen}
+        onClose={() => setInstallModalOpen(false)}
+        isInstalled={isStandalone}
+        canNativeInstall={Boolean(deferredPrompt)}
+        onNativeInstall={handleNativeInstall}
+      />
     </div>
   );
 };

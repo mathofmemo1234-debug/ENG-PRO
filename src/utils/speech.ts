@@ -1,6 +1,7 @@
 export const SPEECH_RATE_OPTIONS = [0.25, 0.5, 0.75, 1, 1.25, 1.5] as const;
 export const DEFAULT_SPEECH_RATE = 1;
 export const DEFAULT_SPEECH_ACCENT: 'en-US' | 'en-GB' = 'en-US';
+export const VERCEL_APP_URL = 'https://mjumaa-eng.vercel.app/';
 
 export type SpeechGender = 'female' | 'male';
 export const DEFAULT_SPEECH_GENDER: SpeechGender = 'female';
@@ -526,7 +527,11 @@ export function stopSpeech(): void {
 function buildTtsUrls(chunk: string, accent: AccentCode): string[] {
   const tl = encodeURIComponent(accent);
   const q = encodeURIComponent(chunk);
+  const isVercelOrigin =
+    typeof window !== 'undefined' && window.location.hostname.endsWith('vercel.app');
+  const proxyBase = isVercelOrigin ? '/api/tts' : `${VERCEL_APP_URL}api/tts`;
   return [
+    `${proxyBase}?lang=${tl}&text=${q}`,
     `https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=${tl}&q=${q}`,
     `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${tl}&q=${q}`,
   ];
@@ -552,7 +557,6 @@ function runSpeak(
   }
 
   const mode = engineOverride ?? getSpeechEngineMode();
-  const ios = isIOSDevice();
   const mobile = isMobileDevice();
   const isOnline = typeof navigator === 'undefined' ? true : navigator.onLine !== false;
   const sessionId = activeSessionId;
@@ -857,7 +861,7 @@ function runSpeak(
   };
 
   if (mode === 'device') {
-    playViaWebSpeech(0, !ios && isOnline);
+    playViaWebSpeech(0, isOnline);
     return;
   }
 
@@ -872,18 +876,7 @@ function runSpeak(
     return;
   }
 
-  // 'auto' mode
-  if (ios) {
-    // iOS AVPlayer rejects chunked MP3 streams without byte-range support; synchronous speechSynthesis inside user tap works reliably.
-    if (isSpeechSynthesisSupported()) {
-      playViaWebSpeech(0, false);
-    } else {
-      playViaHtmlAudio(0, notifyFailure);
-    }
-    return;
-  }
-
-  // Male voice prefers device Web Speech (Android has native Male voices; cloud MP3 only serves Female), with automatic cloud fallback.
+  // 'auto' mode: Male prefers native Web Speech (with /api/tts fallback); Female on mobile (iOS & Android) uses Range-capable /api/tts MP3 first.
   if (gender === 'male' && isSpeechSynthesisSupported()) {
     playViaWebSpeech(0, isOnline);
     return;
@@ -939,9 +932,7 @@ export function activateMobileAudio(opts: SpeakOptions = {}): void {
   const isOnline = typeof navigator === 'undefined' ? true : navigator.onLine !== false;
   if (mode === 'auto') {
     const preferredMode: SpeechEngineMode =
-      isIOSDevice() || !isOnline || (gender === 'male' && isSpeechSynthesisSupported())
-        ? 'device'
-        : 'cloud';
+      !isOnline || (gender === 'male' && isSpeechSynthesisSupported()) ? 'device' : 'cloud';
     runSpeak('Audio is ready.', opts, preferredMode, true);
     return;
   }

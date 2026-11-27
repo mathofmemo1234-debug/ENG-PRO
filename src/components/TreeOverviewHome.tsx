@@ -17,6 +17,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { CURRICULA_META, CURRICULUM_TREE_TERMS } from '../data/curricula';
 import { EGYPT_PREP3_TERM1_UNITS } from '../data/units';
+import { VercelQrShareCard } from './PwaAndQrModals';
 
 export const TreeOverviewHome: React.FC = () => {
   const { setRoute, setActiveCurriculum, progress } = useApp();
@@ -400,6 +401,9 @@ export const TreeOverviewHome: React.FC = () => {
           })}
         </div>
       </section>
+
+      {/* Vercel QR Share + PWA Install Card */}
+      <VercelQrShareCard />
     </div>
   );
 };
