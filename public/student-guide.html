@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f766e" />
+    <title>دليل الطالب للاستخدام الأمثل | منصة إتقان الإنجليزية</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --primary: #0f766e;
+        --primary-dark: #115e59;
+        --primary-soft: #f0fdfa;
+        --accent: #2563eb;
+        --amber-bg: #fffbeb;
+        --amber-border: #fde68a;
+        --amber-text: #92400e;
+        --emerald-bg: #ecfdf5;
+        --emerald-border: #a7f3d0;
+        --emerald-text: #065f46;
+        --slate-900: #0f172a;
+        --slate-700: #334155;
+        --slate-600: #475569;
+        --slate-500: #64748b;
+        --slate-200: #e2e8f0;
+        --slate-100: #f1f5f9;
+        --slate-50: #f8fafc;
+        --white: #ffffff;
+        --hero-gradient: linear-gradient(135deg, #0f766e 0%, #0d9488 45%, #2563eb 100%);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif;
+        background: var(--slate-50);
+        color: var(--slate-900);
+        line-height: 1.8;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .container {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 20px 16px 56px;
+      }
+
+      .hero {
+        background: var(--hero-gradient);
+        color: var(--white);
+        border-radius: 28px;
+        padding: 32px 24px;
+        box-shadow: 0 18px 40px -18px rgba(15, 118, 110, 0.45);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        padding: 6px 14px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 800;
+        margin-bottom: 14px;
+      }
+
+      .hero h1 {
+        margin: 0 0 10px;
+        font-size: clamp(24px, 4.2vw, 36px);
+        font-weight: 900;
+        line-height: 1.35;
+      }
+
+      .hero p {
+        margin: 0 0 22px;
+        font-size: 15px;
+        opacity: 0.95;
+        max-width: 720px;
+      }
+
+      .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 11px 18px;
+        border-radius: 14px;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 800;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        transition: transform 0.15s ease, opacity 0.15s ease;
+      }
+
+      .btn:hover {
+        opacity: 0.94;
+        transform: translateY(-1px);
+      }
+
+      .btn-white {
+        background: var(--white);
+        color: var(--primary-dark);
+      }
+
+      .btn-glass {
+        background: rgba(255, 255, 255, 0.18);
+        color: var(--white);
+        border: 1px solid rgba(255, 255, 255, 0.32);
+      }
+
+      .toc {
+        margin-top: 22px;
+        background: var(--white);
+        border: 1px solid var(--slate-200);
+        border-radius: 22px;
+        padding: 16px 20px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .toc-title {
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--slate-600);
+        margin-left: 6px;
+      }
+
+      .toc a {
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--primary-dark);
+        background: var(--primary-soft);
+        border: 1px solid #ccfbf1;
+        padding: 5px 12px;
+        border-radius: 999px;
+      }
+
+      .toc a:hover {
+        background: #ccfbf1;
+      }
+
+      section.card {
+        margin-top: 22px;
+        background: var(--white);
+        border: 1px solid var(--slate-200);
+        border-radius: 24px;
+        padding: 24px 22px;
+        box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+      }
+
+      .section-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .step-num {
+        width: 40px;
+        height: 40px;
+        border-radius: 14px;
+        background: var(--hero-gradient);
+        color: var(--white);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-weight: 900;
+        flex-shrink: 0;
+      }
+
+      .section-header h2 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 900;
+        color: var(--slate-900);
+      }
+
+      .section-header p {
+        margin: 2px 0 0;
+        font-size: 13px;
+        color: var(--slate-500);
+        font-weight: 600;
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 14px;
+      }
+
+      .grid-3 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 14px;
+      }
+
+      .mini-card {
+        background: var(--slate-50);
+        border: 1px solid var(--slate-200);
+        border-radius: 18px;
+        padding: 16px;
+      }
+
+      .mini-card h3 {
+        margin: 0 0 6px;
+        font-size: 15px;
+        font-weight: 800;
+        color: var(--slate-900);
+      }
+
+      .mini-card p {
+        margin: 0;
+        font-size: 13.5px;
+        color: var(--slate-700);
+      }
+
+      .pill {
+        display: inline-block;
+        padding: 2px 9px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 800;
+        background: var(--primary-soft);
+        color: var(--primary-dark);
+        border: 1px solid #99f6e4;
+      }
+
+      .pill-dark {
+        background: var(--slate-900);
+        color: var(--white);
+        border-color: var(--slate-900);
+      }
+
+      .alert {
+        margin-top: 14px;
+        padding: 14px 16px;
+        border-radius: 16px;
+        font-size: 13.5px;
+        font-weight: 700;
+      }
+
+      .alert-emerald {
+        background: var(--emerald-bg);
+        border: 1px solid var(--emerald-border);
+        color: var(--emerald-text);
+      }
+
+      .alert-amber {
+        background: var(--amber-bg);
+        border: 1px solid var(--amber-border);
+        color: var(--amber-text);
+      }
+
+      .roadmap {
+        display: grid;
+        gap: 12px;
+      }
+
+      .roadmap-item {
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+        background: var(--slate-50);
+        border: 1px solid var(--slate-200);
+        border-radius: 18px;
+        padding: 15px 16px;
+      }
+
+      .roadmap-dot {
+        width: 30px;
+        height: 30px;
+        border-radius: 10px;
+        background: var(--primary);
+        color: var(--white);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-size: 14px;
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+
+      .roadmap-item h3 {
+        margin: 0 0 4px;
+        font-size: 15px;
+        font-weight: 800;
+      }
+
+      .roadmap-item p {
+        margin: 0;
+        font-size: 13.5px;
+        color: var(--slate-700);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+        font-size: 13.5px;
+      }
+
+      th,
+      td {
+        text-align: right;
+        padding: 11px 12px;
+        border-bottom: 1px solid var(--slate-200);
+      }
+
+      th {
+        background: var(--primary-soft);
+        color: var(--primary-dark);
+        font-weight: 800;
+      }
+
+      tr:last-child td {
+        border-bottom: none;
+      }
+
+      .tips-list {
+        margin: 0;
+        padding: 0 20px 0 0;
+        display: grid;
+        gap: 8px;
+        font-size: 14px;
+        color: var(--slate-700);
+      }
+
+      .tips-list li strong {
+        color: var(--slate-900);
+      }
+
+      .footer {
+        margin-top: 28px;
+        text-align: center;
+        color: var(--slate-500);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .footer a {
+        color: var(--primary-dark);
+        text-decoration: none;
+        font-weight: 800;
+      }
+
+      @media print {
+        body {
+          background: var(--white);
+        }
+        .no-print {
+          display: none !important;
+        }
+        .container {
+          max-width: 100%;
+          padding: 0;
+        }
+        section.card,
+        .hero {
+          box-shadow: none;
+          break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Hero -->
+      <header class="hero">
+        <div class="hero-badge">دليل الطالب التفاعلي · منصة إتقان الإنجليزية</div>
+        <h1>كيف تستخدم منصة إتقان الإنجليزية بأفضل طريقة؟</h1>
+        <p>
+          خريطة عملية مبسّطة تشرح لك خطوة بخطوة كيف تستفيد من الشرح المفصل، النطق الصوتي باللكنة
+          الأمريكية والبريطانية، المعجم التفاعلي، التدريبات الذكية، وتثبيت المنصة كتطبيق على جوالك
+          لتحقيق أعلى الدرجات بذكاء وثقة.
+        </p>
+        <div class="hero-actions no-print">
+          <a class="btn btn-white" href="https://mjumaa-eng.vercel.app/" target="_blank" rel="noopener noreferrer">
+            فتح المنصة الآن ←
+          </a>
+          <button class="btn btn-glass" type="button" onclick="window.print()">
+            طباعة الدليل / حفظ PDF
+          </button>
+        </div>
+      </header>
+
+      <!-- Quick Table of Contents -->
+      <nav class="toc no-print" aria-label="أقسام الدليل">
+        <span class="toc-title">انتقل سريعاً إلى:</span>
+        <a href="#step-1">1. البداية ووضع الترجمة</a>
+        <a href="#step-2">2. ضبط الصوت والنطق</a>
+        <a href="#step-3">3. خطة مذاكرة الدرس</a>
+        <a href="#step-4">4. أدوات التفوق والتدريب</a>
+        <a href="#step-5">5. التثبيت والباركود</a>
+        <a href="#weekly-plan">6. خطة الـ 25 دقيقة اليومية</a>
+      </nav>
+
+      <!-- Step 1 -->
+      <section class="card" id="step-1">
+        <div class="section-header">
+          <div class="step-num">1</div>
+          <div>
+            <h2>اختر المسار المناسب ووضع الترجمة الذكي</h2>
+            <p>اضبط واجهة المنصة من الشريط العلوي بما يناسب مستواك الحالي</p>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="mini-card">
+            <h3>اختيار المسار التعليمي</h3>
+            <p>
+              من أعلى الصفحة يمكنك التبديل بين <span class="pill">التأسيس</span> (لمراجعة القواعد
+              الأساسية وخرائط المفاهيم وطرق التعلم الذكي)، و<span class="pill">المنهج المصري</span>
+              (الصف الثالث الإعدادي — 6 وحدات و18 درساً)، و<span class="pill">المنهج السعودي</span>.
+            </p>
+          </div>
+          <div class="mini-card">
+            <h3>أوضاع الترجمة الفورية</h3>
+            <p>
+              اختر <span class="pill">ثنائي اللغة</span> عند المذاكرة الأولى لرؤية الإنجليزية
+              وترجمتها معاً، ثم انتقل إلى <span class="pill">ترجمة عند النقر</span> أثناء المراجعة
+              لتختبر فهمك قبل إظهار المعنى، أو <span class="pill">العربية أولاً</span> عند الحاجة.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 2 -->
+      <section class="card" id="step-2">
+        <div class="section-header">
+          <div class="step-num">2</div>
+          <div>
+            <h2>اضبط الصوت والنطق بشكل مثالي على الجوال والكمبيوتر</h2>
+            <p>الاستماع الصحيح وتكرار النطق هما أسرع طريق لتثبيت الكلمات والقواعد</p>
+          </div>
+        </div>
+
+        <div class="grid-3">
+          <div class="mini-card">
+            <h3>تفعيل الصوت على الجوال</h3>
+            <p>
+              عند فتح المنصة من الهاتف (أندرويد أو آيفون)، اضغط أولاً على الزر البارز
+              <span class="pill">اضغط هنا لتفعيل الصوت على الجوال</span> حتى يتحوّل إلى
+              <strong>الصوت مفعّل ✓</strong>. ويمكنك التبديل بضغطة واحدة بين
+              <strong>الصوت السحابي</strong> و<strong>صوت الجهاز</strong>.
+            </p>
+          </div>
+          <div class="mini-card">
+            <h3>اللكنة ونوع الصوت</h3>
+            <p>
+              اللكنة الافتراضية هي الأمريكية <span class="pill">US</span> ويمكنك التبديل إلى
+              البريطانية <span class="pill">UK</span>. كما يمكنك اختيار الصوت المفضّل لديك بين
+              <span class="pill">ذكر</span> و<span class="pill">أنثى</span> من شريط الصوت العلوي أو
+              شريط الجوال.
+            </p>
+          </div>
+          <div class="mini-card">
+            <h3>التحكم في سرعة النطق</h3>
+            <p>
+              استخدم قائمة السرعة من <span class="pill">0.25x</span> حتى
+              <span class="pill">1.50x</span>: ابدأ بسرعة <span class="pill">0.75x</span> لسماع مخارج
+              الحروف بوضوح، ثم استمع بالسرعة الطبيعية <span class="pill">1.00x</span>، واستخدم
+              <span class="pill">1.25x</span> للمراجعة السريعة.
+            </p>
+          </div>
+        </div>
+
+        <div class="alert alert-emerald">
+          نصيحة سريعة: اضغط على أيقونة السماعة (🔊) في الشريط العلوي في أي وقت لاختبار الصوت فوراً
+          والتأكد من أن السرعة واللكنة تناسبك قبل بدء الدرس.
+        </div>
+      </section>
+
+      <!-- Step 3 -->
+      <section class="card" id="step-3">
+        <div class="section-header">
+          <div class="step-num">3</div>
+          <div>
+            <h2>خطة المذاكرة المثالية لكل درس (منهجية الـ 5 خطوات)</h2>
+            <p>اتبع هذا الترتيب داخل كل وحدة لتحقيق فهم عميق وحفظ طويل الأمد</p>
+          </div>
+        </div>
+
+        <div class="roadmap">
+          <div class="roadmap-item">
+            <div class="roadmap-dot">1</div>
+            <div>
+              <h3>ابدأ بقسم التأسيس الشامل (10 دقائق قبل الوحدات)</h3>
+              <p>
+                راجع القواعد التأسيسية الأساسية وخرائط المفاهيم التفاعلية لتبني أساساً متيناً قبل
+                الدخول في قواعد الصف الثالث الإعدادي.
+              </p>
+            </div>
+          </div>
+
+          <div class="roadmap-item">
+            <div class="roadmap-dot">2</div>
+            <div>
+              <h3>ادخل إلى «الشرح المفصل» للدرس</h3>
+              <p>
+                اقرأ القاعدة الإنجليزية وشرح تركيبها بالعربية، واستمع إلى الأمثلة والجمل، واستخدم
+                <strong>تفكيك الجملة التفاعلي</strong> لفهم دور كل كلمة في الجملة، مع تشغيل
+                <strong>الشرح الصوتي التتابعي</strong>. يمكنك أيضاً حفظ الدروس المهمة في المفضلة
+                وتدوين ملاحظاتك الخاصة أسفل الدرس.
+              </p>
+            </div>
+          </div>
+
+          <div class="roadmap-item">
+            <div class="roadmap-dot">3</div>
+            <div>
+              <h3>طبّق في مساحة الدرس وتدريبات المفردات</h3>
+              <p>
+                استمع لنطق كل كلمة جديدة ورددها بصوت مرتفع مرتين، ثم اقرأ مثالها داخل جملة كاملة
+                بدلاً من حفظ الكلمة منفردة.
+              </p>
+            </div>
+          </div>
+
+          <div class="roadmap-item">
+            <div class="roadmap-dot">4</div>
+            <div>
+              <h3>حلّ ورقة العمل التفاعلية وتحقق من نتيجتك فوراً</h3>
+              <p>
+                أجب عن أسئلة الاختيار من متعدد والصح والخطأ (270 سؤالاً تفاعلياً تغطي المنهج بالكامل)،
+                وراجع الأخطاء فوراً، ويمكنك تصدير ورقة العمل بصيغة <strong>Word</strong> أو
+                <strong>PDF</strong> (مع نموذج الإجابة أو بدونه) للمذاكرة الورقية.
+              </p>
+            </div>
+          </div>
+
+          <div class="roadmap-item">
+            <div class="roadmap-dot">5</div>
+            <div>
+              <h3>اختم بملخص الوحدة الشامل والمخطط التراكمي</h3>
+              <p>
+                بعد إنهاء دروس الوحدة الثلاثة، افتح <strong>ملخص الوحدة الشامل</strong> و<strong>المخطط
+                التراكمي للقواعد</strong> لربط ما تعلمته معاً قبل الانتقال للوحدة التالية.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 4 -->
+      <section class="card" id="step-4">
+        <div class="section-header">
+          <div class="step-num">4</div>
+          <div>
+            <h2>استثمر أدوات التفوق والتدريب الذكي</h2>
+            <p>أدوات تفاعلية تحوّل المذاكرة إلى تجربة ممتعة وتكشف نقاط الضعف مبكراً</p>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="mini-card">
+            <h3>المعجم التفاعلي وبطاقات الفلاش كارد</h3>
+            <p>
+              ابحث عن أي كلمة في المنهج، استمع لنطقها، ضع نجمة ⭐ على الكلمات الصعبة لتكوين قائمتك
+              الخاصة، وتدرّب عليها بوضع <strong>بطاقات المراجعة السريعة</strong>.
+            </p>
+          </div>
+          <div class="mini-card">
+            <h3>ركن التحدي اللفظي</h3>
+            <p>
+              تدرّب على النطق الصحيح بالميكروفون (مع بديل الكتابة إن لم يتوفر ميكروفون)، واختبر
+              سرعتك في <strong>سباق الاستماع السريع (60 ثانية)</strong> وتدريبات المحادثة.
+            </p>
+          </div>
+          <div class="mini-card">
+            <h3>الاختبار التكيّفي الذكي</h3>
+            <p>
+              يقيّم مستواك عبر الوحدات ويعطيك تغذية راجعة فورية توضّح لك الوحدة التي تحتاج إلى
+              مراجعة إضافية قبل الامتحان.
+            </p>
+          </div>
+          <div class="mini-card">
+            <h3>لوحة الإنجاز ونقاط الخبرة (XP)</h3>
+            <p>
+              اضغط على شارة <strong>XP</strong> في الشريط العلوي لمتابعة نسبة إتمام الدروس، ودرجاتك
+              في أوراق العمل، وسلسلة أيام المذاكرة المتواصلة.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 5 -->
+      <section class="card" id="step-5">
+        <div class="section-header">
+          <div class="step-num">5</div>
+          <div>
+            <h2>ثبّت المنصة كتطبيق (PWA) وشاركها بالباركود</h2>
+            <p>افتح المنصة من شاشة هاتفك بضغطة واحدة تماماً مثل التطبيقات</p>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="mini-card">
+            <h3>تثبيت التطبيق على كل الأجهزة</h3>
+            <p>
+              اضغط على زر <span class="pill">تثبيت التطبيق</span> في الشريط العلوي:
+              <br />• <strong>أندرويد (Chrome):</strong> يظهر زر التثبيت المباشر فوراً، أو من قائمة
+              (⋮) ← تثبيت التطبيق.
+              <br />• <strong>آيفون وآيباد (Safari):</strong> زر المشاركة (⬆️) ← إضافة إلى الشاشة
+              الرئيسية.
+              <br />• <strong>الكمبيوتر (Chrome / Edge):</strong> أيقونة التثبيت في شريط العنوان.
+            </p>
+          </div>
+          <div class="mini-card">
+            <h3>مشاركة المنصة عبر الباركود</h3>
+            <p>
+              اضغط على زر <span class="pill pill-dark">الباركود</span> في الأعلى (أو في أسفل الصفحة
+              الرئيسية) لعرض باركود يفتح رابط المنصة مباشرة:
+              <br />
+              <strong dir="ltr">https://mjumaa-eng.vercel.app/</strong>
+              <br />يمكنك نسخه أو تحميل الباركود كصورة <strong>PNG</strong> ومشاركته مع زملائك أو
+              طباعته.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Weekly Plan -->
+      <section class="card" id="weekly-plan">
+        <div class="section-header">
+          <div class="step-num">6</div>
+          <div>
+            <h2>خطة يومية مقترحة للتفوق (25 دقيقة فقط يومياً)</h2>
+            <p>الاستمرارية اليومية القصيرة أفضل بكثير من التكديس ليلة الامتحان</p>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>الوقت</th>
+              <th>النشاط داخل المنصة</th>
+              <th>الهدف التعليمي</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>5 دقائق</strong></td>
+              <td>مراجعة الكلمات المميزة بنجمة في المعجم + نطقها بسرعة 0.75x ثم 1.00x</td>
+              <td>تثبيت المفردات والنطق الصحيح</td>
+            </tr>
+            <tr>
+              <td><strong>10 دقائق</strong></td>
+              <td>دراسة درس واحد في «الشرح المفصل» مع تفكيك الجملة والشرح الصوتي</td>
+              <td>فهم القاعدة الإنجليزية وتركيبها بعمق</td>
+            </tr>
+            <tr>
+              <td><strong>7 دقائق</strong></td>
+              <td>حل ورقة العمل التفاعلية للدرس + تفعيل وضع «ترجمة عند النقر»</td>
+              <td>التطبيق العملي واكتشاف الأخطاء فوراً</td>
+            </tr>
+            <tr>
+              <td><strong>3 دقائق</strong></td>
+              <td>جولة سريعة في ركن التحدي اللفظي أو الاختبار التكيّفي</td>
+              <td>تنشيط الذاكرة ورفع نقاط XP</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="alert alert-amber">
+          <strong>أهم 4 نصائح ذهبية للطلاب:</strong>
+          <ul class="tips-list" style="margin-top: 8px">
+            <li><strong>ردّد بصوت مسموع:</strong> لا تكتفِ بالقراءة الصامتة؛ استمع للفظ ثم كرره لتحسين الطلاقة والإملاء معاً.</li>
+            <li><strong>اكتب ملاحظاتك:</strong> استخدم صندوق الملاحظات في كل درس لتدوين الفروق التي تخطئ فيها عادة.</li>
+            <li><strong>انتقل تدريجياً في الترجمة:</strong> ابدأ بـ «ثنائي اللغة» ثم حوّل إلى «ترجمة عند النقر» في المراجعة النهائية.</li>
+            <li><strong>تصدير للورق قبل الامتحان:</strong> صدّر أوراق العمل بصيغة PDF بدون إجابات واختبر نفسك بزمن محدد.</li>
+          </ul>
+        </div>
+      </section>
+
+      <footer class="footer">
+        منصة إتقان الإنجليزية ·
+        <a href="https://mjumaa-eng.vercel.app/" target="_blank" rel="noopener noreferrer" dir="ltr">
+          https://mjumaa-eng.vercel.app/
+        </a>
+      </footer>
+    </div>
+  </body>
+</html>

@@ -255,7 +255,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Top Navbar */}
-      <header className="no-print sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-[var(--border-soft)] shadow-xs">
+      <header className="no-print lg:sticky lg:top-0 z-40 bg-white/90 backdrop-blur-md border-b border-[var(--border-soft)] shadow-xs">
         <div className="max-w-[1440px] mx-auto px-3 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-2.5">
           {/* Right: Brand + Mobile Drawer Trigger */}
           <div className="flex items-center gap-2.5">
@@ -466,6 +466,18 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <QrCode className="w-3.5 h-3.5" />
               <span>الباركود</span>
             </button>
+
+            <a
+              href="./student-guide.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="دليل الطالب"
+              title="فتح الدليل الإرشادي لكيفية استخدام المنصة"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white border border-[var(--border-soft)] text-slate-700 hover:text-[var(--brand-primary-dark)] hover:bg-[var(--surface-muted)] text-xs font-extrabold transition"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>دليل الطالب</span>
+            </a>
           </div>
         </div>
 
