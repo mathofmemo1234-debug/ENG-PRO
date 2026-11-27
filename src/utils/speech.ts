@@ -426,7 +426,12 @@ function buildTtsUrls(chunk: string, accent: AccentCode): string[] {
   ];
 }
 
-function runSpeak(text: string, opts: SpeakOptions = {}, engineOverride?: SpeechEngineMode): void {
+function runSpeak(
+  text: string,
+  opts: SpeakOptions = {},
+  engineOverride?: SpeechEngineMode,
+  rememberSessionEngine = false
+): void {
   ensureVoiceListener();
   stopSpeech();
   unlockAudioContext();
@@ -451,7 +456,7 @@ function runSpeak(text: string, opts: SpeakOptions = {}, engineOverride?: Speech
   const markEngineActive = (engine: ActiveSpeechEngine) => {
     if (sessionId !== activeSessionId) return;
     audioActivated = true;
-    if (mode === 'auto' && mobile) {
+    if (rememberSessionEngine || (mode === 'auto' && mobile)) {
       sessionMobileEngine = engine;
     }
     if (!engineReported) {
@@ -658,6 +663,7 @@ function runSpeak(text: string, opts: SpeakOptions = {}, engineOverride?: Speech
       }
 
       let chunkStarted = false;
+      let speakRequestedAt = Date.now();
       activeUtterances.add(utterance);
 
       keepAliveTimer = setInterval(() => {
@@ -682,17 +688,16 @@ function runSpeak(text: string, opts: SpeakOptions = {}, engineOverride?: Speech
           if (allowRetry && !synth.speaking && !synth.pending) {
             try {
               synth.resume();
+              speakRequestedAt = Date.now();
               synth.speak(utterance);
-              scheduleWatchdog(2000, false);
+              scheduleWatchdog(1800, false);
               return;
             } catch {
               /* fall through */
             }
           }
 
-          if (!chunkStarted && !synth.speaking && !synth.pending) {
-            handleSpeechFailure(chunkIdx);
-          }
+          handleSpeechFailure(chunkIdx);
         }, delayMs);
       };
 
@@ -710,6 +715,13 @@ function runSpeak(text: string, opts: SpeakOptions = {}, engineOverride?: Speech
         activeUtterances.delete(utterance);
         clearTimers();
         if (sessionId !== activeSessionId || switchedAway) return;
+        if (!chunkStarted) {
+          if (Date.now() - speakRequestedAt < 250 && allowHtmlFallback) {
+            handleSpeechFailure(chunkIdx);
+            return;
+          }
+          notifyStart('device');
+        }
         speakChunk(chunkIdx + 1, false);
       };
 
@@ -724,9 +736,10 @@ function runSpeak(text: string, opts: SpeakOptions = {}, engineOverride?: Speech
         handleSpeechFailure(chunkIdx);
       };
 
-      scheduleWatchdog(2000, !retriedOnce);
+      scheduleWatchdog(1800, !retriedOnce);
 
       try {
+        speakRequestedAt = Date.now();
         synth.speak(utterance);
       } catch {
         handleSpeechFailure(chunkIdx);
@@ -754,9 +767,25 @@ function runSpeak(text: string, opts: SpeakOptions = {}, engineOverride?: Speech
   }
 
   // 'auto' mode
+  if (sessionMobileEngine === 'cloud' && isOnline) {
+    playViaHtmlAudio(0, (failedIdx) => {
+      if (isSpeechSynthesisSupported()) {
+        playViaWebSpeech(failedIdx, false);
+      } else {
+        notifyFailure();
+      }
+    });
+    return;
+  }
+
+  if (sessionMobileEngine === 'device') {
+    playViaWebSpeech(0, isOnline);
+    return;
+  }
+
   if (mobile) {
-    if (sessionMobileEngine === 'device' || !isOnline) {
-      playViaWebSpeech(0, isOnline);
+    if (!isOnline) {
+      playViaWebSpeech(0, false);
       return;
     }
 
@@ -788,7 +817,10 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
 
 export function activateMobileAudio(opts: SpeakOptions = {}): void {
   unlockAudioContext();
-  runSpeak('Audio is ready.', opts, getSpeechEngineMode());
+  const mode = getSpeechEngineMode();
+  const isOnline = typeof navigator === 'undefined' ? true : navigator.onLine !== false;
+  const preferredMode: SpeechEngineMode = mode === 'auto' && isOnline ? 'cloud' : mode;
+  runSpeak('Audio is ready.', opts, preferredMode, mode === 'auto');
 }
 
 export function normalizeEnglish(text: string): string {
