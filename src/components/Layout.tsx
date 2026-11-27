@@ -20,6 +20,7 @@ import {
   ActiveSpeechEngine,
   SPEECH_RATE_OPTIONS,
   SpeechEngineMode,
+  SpeechGender,
   activateMobileAudio,
   getSpeechEngineMode,
   isIOSDevice,
@@ -44,6 +45,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     setSpeechRate,
     speechAccent,
     setSpeechAccent,
+    speechGender,
+    setSpeechGender,
     route,
     setRoute,
     progress,
@@ -70,6 +73,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     speakEnglish('Welcome! Audio is working clearly.', {
       accent: speechAccent,
       rate: speechRate,
+      gender: speechGender,
       onStart: () => {
         setTestingAudio(true);
         setMobileAudioEnabled(true);
@@ -95,6 +99,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     activateMobileAudio({
       accent: speechAccent,
       rate: speechRate,
+      gender: speechGender,
       onStart: () => {
         setMobileAudioEnabled(true);
         setActivatingMobileAudio(false);
@@ -113,6 +118,27 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     });
   };
 
+  const handleSelectGender = (gender: SpeechGender) => {
+    setSpeechGender(gender);
+    setAudioWarning(null);
+    setTestingAudio(true);
+    speakEnglish(gender === 'male' ? 'Hello! Male voice is active.' : 'Hello! Female voice is active.', {
+      accent: speechAccent,
+      rate: speechRate,
+      gender,
+      onStart: () => {
+        setTestingAudio(true);
+        setMobileAudioEnabled(true);
+      },
+      onEngineSelected: (eng) => setActiveEngine(eng),
+      onEnd: () => setTestingAudio(false),
+      onError: (msg) => {
+        setTestingAudio(false);
+        setAudioWarning(msg);
+      },
+    });
+  };
+
   const handleToggleMobileEngine = () => {
     const currentEffective: ActiveSpeechEngine =
       activeEngine ?? (engineMode === 'device' ? 'device' : 'cloud');
@@ -124,6 +150,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     activateMobileAudio({
       accent: speechAccent,
       rate: speechRate,
+      gender: speechGender,
       onStart: () => {
         setMobileAudioEnabled(true);
         setActivatingMobileAudio(false);
@@ -287,6 +314,34 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               >
                 {speechAccent === 'en-GB' ? 'UK' : 'US'}
               </button>
+              <div className="flex items-center bg-white rounded p-0.5 border border-slate-200/80">
+                <button
+                  type="button"
+                  onClick={() => handleSelectGender('male')}
+                  aria-label="صوت ذكر"
+                  title="اختيار صوت ذكر"
+                  className={`px-1.5 py-0.5 rounded text-[11px] font-bold transition cursor-pointer ${
+                    speechGender === 'male'
+                      ? 'bg-[var(--brand-primary)] text-white'
+                      : 'text-slate-600 hover:text-[var(--brand-primary)]'
+                  }`}
+                >
+                  ذكر
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectGender('female')}
+                  aria-label="صوت أنثى"
+                  title="اختيار صوت أنثى"
+                  className={`px-1.5 py-0.5 rounded text-[11px] font-bold transition cursor-pointer ${
+                    speechGender === 'female'
+                      ? 'bg-[var(--brand-primary)] text-white'
+                      : 'text-slate-600 hover:text-[var(--brand-primary)]'
+                  }`}
+                >
+                  أنثى
+                </button>
+              </div>
               <select
                 dir="ltr"
                 aria-label="سرعة النطق"
@@ -359,7 +414,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 dir="ltr"
                 className="px-2 py-0.5 rounded-lg bg-white/20 text-[11px] font-extrabold shrink-0"
               >
-                {speechAccent === 'en-GB' ? 'UK' : 'US'} · {speechRate.toFixed(2)}x
+                {speechAccent === 'en-GB' ? 'UK' : 'US'} · {speechGender === 'male' ? 'ذكر' : 'أنثى'} ·{' '}
+                {speechRate.toFixed(2)}x
               </span>
             </button>
           ) : (
@@ -367,10 +423,35 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <span className="flex items-center gap-1.5 text-emerald-800">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>
-                  الصوت مفعّل ✓ ({activeEngine === 'device' ? 'صوت الجهاز' : 'سحابي'})
+                  الصوت مفعّل ✓ ({activeEngine === 'device' ? 'صوت الجهاز' : 'سحابي'} ·{' '}
+                  {speechGender === 'male' ? 'ذكر' : 'أنثى'})
                 </span>
               </span>
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <div className="flex items-center bg-white rounded-xl p-0.5 border border-emerald-200">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectGender('male')}
+                    className={`min-h-[30px] px-2.5 py-0.5 rounded-lg text-[11px] font-extrabold transition cursor-pointer ${
+                      speechGender === 'male'
+                        ? 'bg-emerald-700 text-white'
+                        : 'text-emerald-900 hover:bg-emerald-50'
+                    }`}
+                  >
+                    ذكر
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectGender('female')}
+                    className={`min-h-[30px] px-2.5 py-0.5 rounded-lg text-[11px] font-extrabold transition cursor-pointer ${
+                      speechGender === 'female'
+                        ? 'bg-emerald-700 text-white'
+                        : 'text-emerald-900 hover:bg-emerald-50'
+                    }`}
+                  >
+                    أنثى
+                  </button>
+                </div>
                 <button
                   type="button"
                   onClick={handleActivateMobileAudio}

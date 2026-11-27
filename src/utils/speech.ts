@@ -2,12 +2,16 @@ export const SPEECH_RATE_OPTIONS = [0.25, 0.5, 0.75, 1, 1.25, 1.5] as const;
 export const DEFAULT_SPEECH_RATE = 1;
 export const DEFAULT_SPEECH_ACCENT: 'en-US' | 'en-GB' = 'en-US';
 
+export type SpeechGender = 'female' | 'male';
+export const DEFAULT_SPEECH_GENDER: SpeechGender = 'female';
+
 export type SpeechEngineMode = 'auto' | 'cloud' | 'device';
 export type ActiveSpeechEngine = 'cloud' | 'device';
 
 export interface SpeakOptions {
   rate?: number;
   accent?: 'en-GB' | 'en-US';
+  gender?: SpeechGender;
   onStart?: () => void;
   onEnd?: () => void;
   onError?: (message: string) => void;
@@ -21,6 +25,8 @@ interface ExtendedAudioElement extends HTMLAudioElement {
 }
 
 const STORAGE_ENGINE_MODE_KEY = 'eng_mastery_speech_engine_v1';
+const STORAGE_GENDER_KEY = 'eng_mastery_speech_gender_v1';
+const STORAGE_PREFS_KEY = 'eng_mastery_prefs_v1';
 
 const NOVELTY_VOICE_NAMES = new Set([
   'albert',
@@ -54,14 +60,84 @@ const NOVELTY_VOICE_NAMES = new Set([
   'shelley',
 ]);
 
-const PREFERRED_US_VOICE_HINTS = [
+// Android Google TTS voiceURI patterns + iOS/macOS/Windows/Chrome voice names
+const MALE_VOICE_PATTERNS = [
+  'en-us-x-iom',
+  'en-us-x-tpd',
+  'en-us-x-iol',
+  'en-us-x-iog',
+  'en-gb-x-gbb',
+  'en-gb-x-gbd',
+  'en-gb-x-rjs',
+  '-m0',
+  '_m0',
+  'google uk english male',
+  'microsoft guy',
+  'microsoft david',
+  'microsoft mark',
+  'microsoft christopher',
+  'microsoft eric',
+  'microsoft andrew',
+  'microsoft roger',
+  'microsoft ryan',
+  'microsoft george',
+  'alex',
+  'aaron',
+  'tom',
+  'evan',
+  'nathan',
+  'daniel',
+  'arthur',
+  'oliver',
+  'malcolm',
+];
+
+const FEMALE_VOICE_PATTERNS = [
+  'en-us-x-sfg',
+  'en-us-x-tpf',
+  'en-us-x-iob',
+  'en-us-x-tpc',
+  'en-gb-x-gba',
+  'en-gb-x-gbc',
+  'en-gb-x-fis',
+  'en-gb-x-gbg',
+  '-f0',
+  '_f0',
+  'google uk english female',
   'google us english',
+  'microsoft aria',
+  'microsoft jenny',
+  'microsoft zira',
+  'microsoft michelle',
+  'microsoft sonia',
+  'microsoft libby',
+  'microsoft hazel',
+  'microsoft emma',
   'samantha',
   'ava',
   'allison',
+  'nicky',
+  'victoria',
+  'susan',
+  'karen',
+  'kate',
+  'serena',
+  'martha',
+  'stephanie',
+];
+
+const PREFERRED_US_VOICE_HINTS = [
+  'google us english',
+  'en-us-x-iom',
+  'en-us-x-sfg',
+  'en-us-x-tpd',
+  'en-us-x-tpf',
+  'samantha',
   'alex',
   'aaron',
   'nicky',
+  'ava',
+  'allison',
   'microsoft aria',
   'microsoft jenny',
   'microsoft guy',
@@ -71,6 +147,9 @@ const PREFERRED_US_VOICE_HINTS = [
 
 const PREFERRED_UK_VOICE_HINTS = [
   'google uk english',
+  'en-gb-x-gba',
+  'en-gb-x-gbb',
+  'en-gb-x-rjs',
   'daniel',
   'serena',
   'martha',
@@ -85,11 +164,28 @@ const PREFERRED_UK_VOICE_HINTS = [
 const AUDIO_UNAVAILABLE_MESSAGE =
   'تعذر تشغيل الصوت على هذا الجهاز. تأكد من رفع الصوت وإلغاء الوضع الصامت، أو افتح المنصة في متصفح Chrome أو Safari.';
 
+function loadInitialGender(): SpeechGender {
+  if (typeof window === 'undefined') return DEFAULT_SPEECH_GENDER;
+  try {
+    const prefsRaw = localStorage.getItem(STORAGE_PREFS_KEY);
+    if (prefsRaw) {
+      const parsed = JSON.parse(prefsRaw)?.speechGender;
+      if (parsed === 'male' || parsed === 'female') return parsed;
+    }
+    const direct = localStorage.getItem(STORAGE_GENDER_KEY);
+    if (direct === 'male' || direct === 'female') return direct;
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_SPEECH_GENDER;
+}
+
 let cachedVoices: SpeechSynthesisVoice[] = [];
 let voiceListenerBound = false;
 let sharedAudioEl: ExtendedAudioElement | null = null;
 let audioActivated = false;
 let sessionMobileEngine: ActiveSpeechEngine | null = null;
+let defaultSpeechGender: SpeechGender = loadInitialGender();
 
 let activeSessionId = 0;
 const activeUtterances = new Set<SpeechSynthesisUtterance>();
@@ -109,6 +205,20 @@ function clearTimers(): void {
   if (keepAliveTimer !== null) {
     clearInterval(keepAliveTimer);
     keepAliveTimer = null;
+  }
+}
+
+export function getDefaultSpeechGender(): SpeechGender {
+  return defaultSpeechGender;
+}
+
+export function setDefaultSpeechGender(gender: SpeechGender): void {
+  defaultSpeechGender = gender;
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_GENDER_KEY, gender);
+  } catch {
+    /* ignore */
   }
 }
 
@@ -299,12 +409,33 @@ function isNoveltyVoice(voiceName: string): boolean {
   return false;
 }
 
-function scoreVoice(voice: SpeechSynthesisVoice, accent: AccentCode): number {
-  const lang = voice.lang.toLowerCase().replace('_', '-');
-  if (!lang.startsWith('en')) return -1;
+function classifyVoiceGender(voice: SpeechSynthesisVoice): 'male' | 'female' | 'unknown' {
+  const signature = `${voice.name || ''} ${voice.voiceURI || ''}`.toLowerCase();
+  if (
+    FEMALE_VOICE_PATTERNS.some((p) => signature.includes(p)) ||
+    /(^|[^a-z])(female|woman)([^a-z]|$)/.test(signature)
+  ) {
+    return 'female';
+  }
+  if (
+    MALE_VOICE_PATTERNS.some((p) => signature.includes(p)) ||
+    /(^|[^a-z])(male|man)([^a-z]|$)/.test(signature)
+  ) {
+    return 'male';
+  }
+  return 'unknown';
+}
 
-  const name = voice.name.toLowerCase();
-  if (isNoveltyVoice(name)) return -1;
+function scoreVoice(
+  voice: SpeechSynthesisVoice,
+  accent: AccentCode,
+  gender: SpeechGender
+): { score: number; matchedGender: boolean } {
+  const lang = voice.lang.toLowerCase().replace('_', '-');
+  if (!lang.startsWith('en')) return { score: -1, matchedGender: false };
+
+  const signature = `${voice.name || ''} ${voice.voiceURI || ''}`.toLowerCase();
+  if (isNoveltyVoice(signature)) return { score: -1, matchedGender: false };
 
   let score = 10;
   const isUS = accent === 'en-US';
@@ -317,36 +448,49 @@ function scoreVoice(voice: SpeechSynthesisVoice, accent: AccentCode): number {
     score += 80;
   }
 
-  if (hints.some((hint) => name.includes(hint))) {
-    score += 40;
+  const detectedGender = classifyVoiceGender(voice);
+  const matchedGender = detectedGender === gender;
+  if (matchedGender) {
+    score += 90;
+  } else if (detectedGender !== 'unknown') {
+    score -= 60;
   }
+
   if (voice.localService) {
     score += 50;
+  }
+  if (hints.some((hint) => signature.includes(hint))) {
+    score += 30;
   }
   if (voice.default && exactTargets.some((t) => lang.startsWith(t))) {
     score += 5;
   }
 
-  return score;
+  return { score, matchedGender };
 }
 
-function pickBestVoice(accent: AccentCode): SpeechSynthesisVoice | undefined {
+function pickBestVoice(
+  accent: AccentCode,
+  gender: SpeechGender
+): { voice?: SpeechSynthesisVoice; matchedGender: boolean } {
   const liveVoices = refreshVoices();
   const list = liveVoices.length > 0 ? liveVoices : cachedVoices;
-  if (!list.length) return undefined;
+  if (!list.length) return { matchedGender: false };
 
   let bestVoice: SpeechSynthesisVoice | undefined;
   let bestScore = -1;
+  let bestMatchedGender = false;
 
   for (const voice of list) {
-    const score = scoreVoice(voice, accent);
+    const { score, matchedGender } = scoreVoice(voice, accent, gender);
     if (score > bestScore) {
       bestScore = score;
       bestVoice = voice;
+      bestMatchedGender = matchedGender;
     }
   }
 
-  return bestVoice;
+  return { voice: bestVoice, matchedGender: bestMatchedGender };
 }
 
 export function stopSpeech(): void {
@@ -398,6 +542,7 @@ function runSpeak(
   stopSpeech();
 
   const accent: AccentCode = opts.accent ?? DEFAULT_SPEECH_ACCENT;
+  const gender: SpeechGender = opts.gender ?? getDefaultSpeechGender();
   const clampedRate = Math.min(1.5, Math.max(0.25, opts.rate ?? DEFAULT_SPEECH_RATE));
   const chunks = splitIntoSpeechChunks(text, clampedRate);
 
@@ -418,7 +563,7 @@ function runSpeak(
   const markEngineActive = (engine: ActiveSpeechEngine) => {
     if (sessionId !== activeSessionId) return;
     audioActivated = true;
-    if (rememberSessionEngine || (mode === 'auto' && mobile)) {
+    if (rememberSessionEngine || (mode === 'auto' && mobile && gender === 'female')) {
       sessionMobileEngine = engine;
     }
     if (!engineReported) {
@@ -616,13 +761,13 @@ function runSpeak(
       const utterance = new SpeechSynthesisUtterance(chunks[chunkIdx]);
       utterance.lang = accent;
       utterance.rate = clampedRate;
-      utterance.pitch = 1.0;
       utterance.volume = 1.0;
 
-      const voice = pickBestVoice(accent);
+      const { voice, matchedGender } = pickBestVoice(accent, gender);
       if (voice) {
         utterance.voice = voice;
       }
+      utterance.pitch = matchedGender ? 1.0 : gender === 'male' ? 0.78 : 1.15;
 
       let chunkStarted = false;
       let speakRequestedAt = Date.now();
@@ -738,6 +883,12 @@ function runSpeak(
     return;
   }
 
+  // Male voice prefers device Web Speech (Android has native Male voices; cloud MP3 only serves Female), with automatic cloud fallback.
+  if (gender === 'male' && isSpeechSynthesisSupported()) {
+    playViaWebSpeech(0, isOnline);
+    return;
+  }
+
   if (sessionMobileEngine === 'cloud' && isOnline) {
     playViaHtmlAudio(0, (failedIdx) => {
       if (isSpeechSynthesisSupported()) {
@@ -784,9 +935,13 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
 
 export function activateMobileAudio(opts: SpeakOptions = {}): void {
   const mode = getSpeechEngineMode();
+  const gender = opts.gender ?? getDefaultSpeechGender();
   const isOnline = typeof navigator === 'undefined' ? true : navigator.onLine !== false;
   if (mode === 'auto') {
-    const preferredMode: SpeechEngineMode = isIOSDevice() || !isOnline ? 'device' : 'cloud';
+    const preferredMode: SpeechEngineMode =
+      isIOSDevice() || !isOnline || (gender === 'male' && isSpeechSynthesisSupported())
+        ? 'device'
+        : 'cloud';
     runSpeak('Audio is ready.', opts, preferredMode, true);
     return;
   }

@@ -6,7 +6,13 @@ import {
   UserProgress,
   ViewRoute,
 } from '../data/types';
-import { DEFAULT_SPEECH_ACCENT, DEFAULT_SPEECH_RATE } from '../utils/speech';
+import {
+  DEFAULT_SPEECH_ACCENT,
+  DEFAULT_SPEECH_GENDER,
+  DEFAULT_SPEECH_RATE,
+  SpeechGender,
+  setDefaultSpeechGender,
+} from '../utils/speech';
 
 const STORAGE_PROGRESS_KEY = 'eng_mastery_progress_v1';
 const STORAGE_DISCUSSIONS_KEY = 'eng_mastery_discussions_v1';
@@ -42,6 +48,8 @@ interface AppContextValue {
   setSpeechRate: (r: number) => void;
   speechAccent: 'en-GB' | 'en-US';
   setSpeechAccent: (a: 'en-GB' | 'en-US') => void;
+  speechGender: SpeechGender;
+  setSpeechGender: (g: SpeechGender) => void;
   route: ViewRoute;
   setRoute: (r: ViewRoute) => void;
   progress: UserProgress;
@@ -123,6 +131,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     return DEFAULT_SPEECH_ACCENT;
   });
+
+  const [speechGender, setSpeechGenderState] = useState<SpeechGender>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_PREFS_KEY);
+      if (saved) {
+        const parsedGender = JSON.parse(saved).speechGender;
+        if (parsedGender === 'male' || parsedGender === 'female') {
+          setDefaultSpeechGender(parsedGender);
+          return parsedGender;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    setDefaultSpeechGender(DEFAULT_SPEECH_GENDER);
+    return DEFAULT_SPEECH_GENDER;
+  });
+
+  const setSpeechGender = (g: SpeechGender) => {
+    setDefaultSpeechGender(g);
+    setSpeechGenderState(g);
+  };
+
   const [route, setRouteState] = useState<ViewRoute>({ page: 'home' });
 
   const setRoute = (nextRoute: ViewRoute) => {
@@ -168,15 +199,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', activeCurriculum);
+    setDefaultSpeechGender(speechGender);
     try {
       localStorage.setItem(
         STORAGE_PREFS_KEY,
-        JSON.stringify({ activeCurriculum, translationMode, speechRate, speechAccent })
+        JSON.stringify({ activeCurriculum, translationMode, speechRate, speechAccent, speechGender })
       );
     } catch {
       /* ignore */
     }
-  }, [activeCurriculum, translationMode, speechRate, speechAccent]);
+  }, [activeCurriculum, translationMode, speechRate, speechAccent, speechGender]);
 
   useEffect(() => {
     try {
@@ -399,6 +431,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSpeechRate,
       speechAccent,
       setSpeechAccent,
+      speechGender,
+      setSpeechGender,
       route,
       setRoute,
       progress,
@@ -416,7 +450,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addDiscussionReply,
       toggleLikePost,
     }),
-    [activeCurriculum, translationMode, speechRate, speechAccent, route, progress, customDiscussions]
+    [activeCurriculum, translationMode, speechRate, speechAccent, speechGender, route, progress, customDiscussions]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
