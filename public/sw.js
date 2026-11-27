@@ -1,5 +1,5 @@
-const CACHE_NAME = 'eng-mastery-pwa-v1';
-const PRECACHE_URLS = ['./', './manifest.webmanifest'];
+const CACHE_NAME = 'eng-mastery-pwa-v2';
+const PRECACHE_URLS = ['./', './manifest.webmanifest', './logo.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

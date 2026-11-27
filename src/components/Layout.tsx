@@ -271,12 +271,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               onClick={() => setRoute({ page: 'home' })}
               className="flex items-center gap-2.5 cursor-pointer text-right"
             >
-              <div
-                className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-sm"
-                style={{ background: 'var(--hero-gradient)' }}
-              >
-                <GraduationCap className="w-5 h-5" />
-              </div>
+              <img
+                src="./logo.png"
+                alt="شعار منصة إتقان الإنجليزية"
+                className="w-11 h-11 rounded-full object-contain bg-white border border-slate-200/90 shadow-xs p-0.5 shrink-0"
+              />
               <div>
                 <div className="font-extrabold text-sm sm:text-base text-slate-900 leading-tight">
                   منصة إتقان الإنجليزية
