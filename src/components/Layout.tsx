@@ -14,7 +14,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { CURRICULA_META } from '../data/curricula';
 import { CurriculumId, TranslationMode } from '../data/types';
-import { SPEECH_RATE_OPTIONS } from '../utils/speech';
+import { SPEECH_RATE_OPTIONS, speakEnglish, stopSpeech } from '../utils/speech';
 import { CurriculumTreeSidebar } from './CurriculumTreeSidebar';
 
 interface LayoutProps {
@@ -37,6 +37,28 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   } = useApp();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [testingAudio, setTestingAudio] = useState(false);
+  const [audioWarning, setAudioWarning] = useState<string | null>(null);
+
+  const handleTestAudio = () => {
+    if (testingAudio) {
+      stopSpeech();
+      setTestingAudio(false);
+      return;
+    }
+    setAudioWarning(null);
+    setTestingAudio(true);
+    speakEnglish('Welcome! Audio is working clearly.', {
+      accent: speechAccent,
+      rate: speechRate,
+      onStart: () => setTestingAudio(true),
+      onEnd: () => setTestingAudio(false),
+      onError: (msg) => {
+        setTestingAudio(false);
+        setAudioWarning(msg);
+      },
+    });
+  };
 
   const handleCurriculumSwitch = (id: CurriculumId) => {
     setActiveCurriculum(id);
@@ -160,7 +182,21 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             {/* Speech Controls */}
             <div className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-xl border border-slate-200 text-[11px] font-bold">
-              <Volume2 className="w-3.5 h-3.5 text-slate-600" />
+              <button
+                type="button"
+                onClick={handleTestAudio}
+                className="p-0.5 rounded hover:bg-white transition cursor-pointer"
+                aria-label="اختبار الصوت"
+                title="اختبار الصوت والتأكد من عمل النطق"
+              >
+                <Volume2
+                  className={`w-3.5 h-3.5 ${
+                    testingAudio
+                      ? 'text-[var(--brand-primary)] animate-pulse'
+                      : 'text-slate-600 hover:text-[var(--brand-primary)]'
+                  }`}
+                />
+              </button>
               <button
                 type="button"
                 onClick={() => setSpeechAccent(speechAccent === 'en-GB' ? 'en-US' : 'en-GB')}
@@ -220,6 +256,22 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             </button>
           ))}
         </div>
+
+        {audioWarning && (
+          <div className="max-w-[1440px] mx-auto px-3 sm:px-5 pb-2">
+            <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold">
+              <span>{audioWarning}</span>
+              <button
+                type="button"
+                onClick={() => setAudioWarning(null)}
+                className="p-1 rounded-lg hover:bg-amber-100 cursor-pointer shrink-0"
+                aria-label="إغلاق تنبيه الصوت"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Main Content + Tree Sidebar */}
