@@ -2,12 +2,16 @@ export const SPEECH_RATE_OPTIONS = [0.25, 0.5, 0.75, 1, 1.25, 1.5] as const;
 export const DEFAULT_SPEECH_RATE = 1;
 export const DEFAULT_SPEECH_ACCENT: 'en-US' | 'en-GB' = 'en-US';
 
+export type SpeechEngineMode = 'auto' | 'cloud' | 'device';
+export type ActiveSpeechEngine = 'cloud' | 'device';
+
 export interface SpeakOptions {
   rate?: number;
   accent?: 'en-GB' | 'en-US';
   onStart?: () => void;
   onEnd?: () => void;
   onError?: (message: string) => void;
+  onEngineSelected?: (engine: ActiveSpeechEngine) => void;
 }
 
 type AccentCode = 'en-GB' | 'en-US';
@@ -15,6 +19,8 @@ type AccentCode = 'en-GB' | 'en-US';
 interface ExtendedAudioElement extends HTMLAudioElement {
   webkitPreservesPitch?: boolean;
 }
+
+const STORAGE_ENGINE_MODE_KEY = 'eng_mastery_speech_engine_v1';
 
 const NOVELTY_VOICE_NAMES = new Set([
   'albert',
@@ -82,6 +88,9 @@ const AUDIO_UNAVAILABLE_MESSAGE =
 let cachedVoices: SpeechSynthesisVoice[] = [];
 let voiceListenerBound = false;
 let sharedAudioEl: ExtendedAudioElement | null = null;
+let sharedAudioCtx: AudioContext | null = null;
+let audioActivated = false;
+let sessionMobileEngine: ActiveSpeechEngine | null = null;
 
 let activeSessionId = 0;
 const activeUtterances = new Set<SpeechSynthesisUtterance>();
@@ -104,20 +113,7 @@ function clearTimers(): void {
   }
 }
 
-function getSharedAudio(): ExtendedAudioElement | null {
-  if (typeof window === 'undefined' || typeof Audio === 'undefined') {
-    return null;
-  }
-  if (!sharedAudioEl) {
-    sharedAudioEl = new Audio() as ExtendedAudioElement;
-    sharedAudioEl.preload = 'auto';
-    sharedAudioEl.setAttribute('playsinline', 'true');
-    sharedAudioEl.setAttribute('webkit-playsinline', 'true');
-  }
-  return sharedAudioEl;
-}
-
-function isMobileDevice(): boolean {
+export function isMobileDevice(): boolean {
   if (typeof navigator === 'undefined') return false;
   const ua = navigator.userAgent || '';
   if (/Android|iPhone|iPad|iPod|Mobile|CriOS|FxiOS|Opera Mini|IEMobile/i.test(ua)) {
@@ -128,6 +124,84 @@ function isMobileDevice(): boolean {
     return true;
   }
   return false;
+}
+
+export function getSpeechEngineMode(): SpeechEngineMode {
+  if (typeof window === 'undefined') return 'auto';
+  try {
+    const raw = localStorage.getItem(STORAGE_ENGINE_MODE_KEY);
+    if (raw === 'auto' || raw === 'cloud' || raw === 'device') {
+      return raw;
+    }
+  } catch {
+    /* ignore */
+  }
+  return 'auto';
+}
+
+export function setSpeechEngineMode(mode: SpeechEngineMode): void {
+  if (mode === 'cloud' || mode === 'device') {
+    sessionMobileEngine = mode;
+  } else {
+    sessionMobileEngine = null;
+  }
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_ENGINE_MODE_KEY, mode);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function isAudioActivated(): boolean {
+  return audioActivated;
+}
+
+function getSharedAudio(): ExtendedAudioElement | null {
+  if (typeof window === 'undefined' || typeof Audio === 'undefined') {
+    return null;
+  }
+  if (!sharedAudioEl) {
+    sharedAudioEl = new Audio() as ExtendedAudioElement;
+    sharedAudioEl.preload = 'auto';
+    sharedAudioEl.setAttribute('playsinline', 'true');
+    sharedAudioEl.setAttribute('webkit-playsinline', 'true');
+    sharedAudioEl.style.display = 'none';
+  }
+  if (typeof document !== 'undefined' && document.body && !sharedAudioEl.parentNode) {
+    try {
+      document.body.appendChild(sharedAudioEl);
+    } catch {
+      /* ignore */
+    }
+  }
+  return sharedAudioEl;
+}
+
+function unlockAudioContext(): void {
+  if (typeof window === 'undefined') return;
+  const AudioCtx =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioCtx) return;
+
+  try {
+    if (!sharedAudioCtx) {
+      sharedAudioCtx = new AudioCtx();
+    }
+    if (sharedAudioCtx.state === 'suspended') {
+      void sharedAudioCtx.resume().catch(() => {
+        /* ignore */
+      });
+    }
+    const buffer = sharedAudioCtx.createBuffer(1, 1, 22050);
+    const source = sharedAudioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(sharedAudioCtx.destination);
+    source.start(0);
+  } catch {
+    /* ignore */
+  }
 }
 
 function refreshVoices(): SpeechSynthesisVoice[] {
@@ -143,6 +217,24 @@ function refreshVoices(): SpeechSynthesisVoice[] {
     /* ignore */
   }
   return cachedVoices;
+}
+
+function primeWebSpeechSilently(accent: AccentCode): void {
+  if (!isSpeechSynthesisSupported()) return;
+  try {
+    const synth = window.speechSynthesis;
+    if (synth.paused) {
+      synth.resume();
+    }
+    refreshVoices();
+    const silentUtterance = new SpeechSynthesisUtterance('');
+    silentUtterance.lang = accent;
+    silentUtterance.volume = 0;
+    silentUtterance.rate = 1;
+    synth.speak(silentUtterance);
+  } catch {
+    /* ignore */
+  }
 }
 
 function ensureVoiceListener(): void {
@@ -334,9 +426,10 @@ function buildTtsUrls(chunk: string, accent: AccentCode): string[] {
   ];
 }
 
-export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
+function runSpeak(text: string, opts: SpeakOptions = {}, engineOverride?: SpeechEngineMode): void {
   ensureVoiceListener();
   stopSpeech();
+  unlockAudioContext();
 
   const accent: AccentCode = opts.accent ?? DEFAULT_SPEECH_ACCENT;
   const clampedRate = Math.min(1.5, Math.max(0.25, opts.rate ?? DEFAULT_SPEECH_RATE));
@@ -347,12 +440,30 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
     return;
   }
 
+  const mode = engineOverride ?? getSpeechEngineMode();
+  const mobile = isMobileDevice();
+  const isOnline = typeof navigator === 'undefined' ? true : navigator.onLine !== false;
   const sessionId = activeSessionId;
   let startedOnce = false;
   let endedOnce = false;
+  let engineReported = false;
 
-  const notifyStart = () => {
-    if (sessionId !== activeSessionId || startedOnce) return;
+  const markEngineActive = (engine: ActiveSpeechEngine) => {
+    if (sessionId !== activeSessionId) return;
+    audioActivated = true;
+    if (mode === 'auto' && mobile) {
+      sessionMobileEngine = engine;
+    }
+    if (!engineReported) {
+      engineReported = true;
+      opts.onEngineSelected?.(engine);
+    }
+  };
+
+  const notifyStart = (engine: ActiveSpeechEngine) => {
+    if (sessionId !== activeSessionId) return;
+    markEngineActive(engine);
+    if (startedOnce) return;
     startedOnce = true;
     opts.onStart?.();
   };
@@ -435,7 +546,7 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
         clearAudioTimeout();
         if (sessionId !== activeSessionId) return;
         applyPlaybackRate();
-        notifyStart();
+        notifyStart('cloud');
       };
 
       audio.onended = () => {
@@ -471,7 +582,7 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
             .then(() => {
               if (sessionId === activeSessionId) {
                 applyPlaybackRate();
-                notifyStart();
+                notifyStart('cloud');
               }
             })
             .catch(() => {
@@ -592,7 +703,7 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
           watchdogTimer = null;
         }
         if (sessionId !== activeSessionId || switchedAway) return;
-        notifyStart();
+        notifyStart('device');
       };
 
       utterance.onend = () => {
@@ -625,10 +736,34 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
     speakChunk(startIndex, false);
   };
 
-  const isOnline = typeof navigator === 'undefined' ? true : navigator.onLine !== false;
+  if (mode === 'device') {
+    playViaWebSpeech(0, isOnline);
+    return;
+  }
 
-  if (isMobileDevice() && isOnline) {
-    // Primary on mobile: synchronous HTML5 <audio> inside the user tap bypasses iOS Silent Switch & broken WebViews.
+  if (mode === 'cloud') {
+    primeWebSpeechSilently(accent);
+    playViaHtmlAudio(0, (failedIdx) => {
+      if (isSpeechSynthesisSupported()) {
+        playViaWebSpeech(failedIdx, false);
+      } else {
+        notifyFailure();
+      }
+    });
+    return;
+  }
+
+  // 'auto' mode
+  if (mobile) {
+    if (sessionMobileEngine === 'device' || !isOnline) {
+      playViaWebSpeech(0, isOnline);
+      return;
+    }
+
+    if (!audioActivated) {
+      primeWebSpeechSilently(accent);
+    }
+
     playViaHtmlAudio(0, (failedIdx) => {
       if (isSpeechSynthesisSupported()) {
         playViaWebSpeech(failedIdx, false);
@@ -645,6 +780,15 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
   }
 
   playViaHtmlAudio(0, notifyFailure);
+}
+
+export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
+  runSpeak(text, opts);
+}
+
+export function activateMobileAudio(opts: SpeakOptions = {}): void {
+  unlockAudioContext();
+  runSpeak('Audio is ready.', opts, getSpeechEngineMode());
 }
 
 export function normalizeEnglish(text: string): string {
