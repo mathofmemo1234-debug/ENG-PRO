@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+:root,
+[data-theme="egypt"] {
+  --brand-primary: #0d9488;
+  --brand-primary-dark: #0f766e;
+  --brand-primary-soft: #ccfbf1;
+  --brand-secondary: #4f46e5;
+  --brand-secondary-soft: #e0e7ff;
+  --brand-accent: #f59e0b;
+  --brand-accent-soft: #fef3c7;
+  --surface-bg: #f4fafa;
+  --surface-card: #ffffff;
+  --surface-muted: #ecf7f6;
+  --border-soft: #cfe8e5;
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --hero-gradient: linear-gradient(135deg, #0d9488 0%, #2563eb 55%, #4f46e5 100%);
+}
+
+[data-theme="saudi"] {
+  --brand-primary: #059669;
+  --brand-primary-dark: #047857;
+  --brand-primary-soft: #d1fae5;
+  --brand-secondary: #d97706;
+  --brand-secondary-soft: #fef3c7;
+  --brand-accent: #0284c7;
+  --brand-accent-soft: #e0f2fe;
+  --surface-bg: #f3fbf7;
+  --surface-card: #ffffff;
+  --surface-muted: #e6f6ee;
+  --border-soft: #c7e8d8;
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --hero-gradient: linear-gradient(135deg, #059669 0%, #0d9488 50%, #d97706 100%);
+}
+
+[data-theme="foundation"] {
+  --brand-primary: #7c3aed;
+  --brand-primary-dark: #6d28d9;
+  --brand-primary-soft: #ede9fe;
+  --brand-secondary: #ec4899;
+  --brand-secondary-soft: #fce7f3;
+  --brand-accent: #f59e0b;
+  --brand-accent-soft: #fef3c7;
+  --surface-bg: #faf7ff;
+  --surface-card: #ffffff;
+  --surface-muted: #f3ecff;
+  --border-soft: #ddd6fe;
+  --text-main: #1e1b4b;
+  --text-muted: #4c1d95;
+  --hero-gradient: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #ec4899 100%);
+}
+
+body {
+  font-family: "Cairo", "Tajawal", "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  background-color: var(--surface-bg);
+  color: var(--text-main);
+  transition: background-color 0.25s ease, color 0.2s ease;
+}
+
+.font-en {
+  font-family: "Plus Jakarta Sans", "Cairo", system-ui, sans-serif;
+}
+
+/* Custom joyful scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.28);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.48);
+}
+
+/* Flip card helper for Dictionary Flashcards */
+.perspective-1000 {
+  perspective: 1000px;
+}
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+.backface-hidden {
+  backface-visibility: hidden;
+}
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+/* Print / PDF Worksheet Styles */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 14mm;
+  }
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .print-break-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
