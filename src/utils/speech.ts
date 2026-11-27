@@ -16,9 +16,6 @@ interface ExtendedAudioElement extends HTMLAudioElement {
   webkitPreservesPitch?: boolean;
 }
 
-const SILENT_WAV_DATA_URI =
-  'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-
 const NOVELTY_VOICE_NAMES = new Set([
   'albert',
   'bad news',
@@ -83,14 +80,13 @@ const AUDIO_UNAVAILABLE_MESSAGE =
   'تعذر تشغيل الصوت على هذا الجهاز. تأكد من رفع الصوت وإلغاء الوضع الصامت، أو افتح المنصة في متصفح Chrome أو Safari.';
 
 let cachedVoices: SpeechSynthesisVoice[] = [];
-let listenersBound = false;
-let fallbackAudioUnlocked = false;
-let fallbackAudioEl: ExtendedAudioElement | null = null;
-let isPlayingFallback = false;
+let voiceListenerBound = false;
+let sharedAudioEl: ExtendedAudioElement | null = null;
 
 let activeSessionId = 0;
 const activeUtterances = new Set<SpeechSynthesisUtterance>();
 let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
+let audioTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
 let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
 
 function clearTimers(): void {
@@ -98,21 +94,40 @@ function clearTimers(): void {
     clearTimeout(watchdogTimer);
     watchdogTimer = null;
   }
+  if (audioTimeoutTimer !== null) {
+    clearTimeout(audioTimeoutTimer);
+    audioTimeoutTimer = null;
+  }
   if (keepAliveTimer !== null) {
     clearInterval(keepAliveTimer);
     keepAliveTimer = null;
   }
 }
 
-function getFallbackAudio(): ExtendedAudioElement | null {
+function getSharedAudio(): ExtendedAudioElement | null {
   if (typeof window === 'undefined' || typeof Audio === 'undefined') {
     return null;
   }
-  if (!fallbackAudioEl) {
-    fallbackAudioEl = new Audio() as ExtendedAudioElement;
-    fallbackAudioEl.preload = 'auto';
+  if (!sharedAudioEl) {
+    sharedAudioEl = new Audio() as ExtendedAudioElement;
+    sharedAudioEl.preload = 'auto';
+    sharedAudioEl.setAttribute('playsinline', 'true');
+    sharedAudioEl.setAttribute('webkit-playsinline', 'true');
   }
-  return fallbackAudioEl;
+  return sharedAudioEl;
+}
+
+function isMobileDevice(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  if (/Android|iPhone|iPad|iPod|Mobile|CriOS|FxiOS|Opera Mini|IEMobile/i.test(ua)) {
+    return true;
+  }
+  // iPadOS 13+ reports Macintosh in UA with maxTouchPoints > 1
+  if (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints ?? 0) > 1) {
+    return true;
+  }
+  return false;
 }
 
 function refreshVoices(): SpeechSynthesisVoice[] {
@@ -130,59 +145,9 @@ function refreshVoices(): SpeechSynthesisVoice[] {
   return cachedVoices;
 }
 
-function unlockAudioOnFirstGesture(): void {
-  if (typeof window === 'undefined') return;
-
-  refreshVoices();
-  if (isSpeechSynthesisSupported()) {
-    try {
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-
-  if (!fallbackAudioUnlocked && !isPlayingFallback) {
-    const audio = getFallbackAudio();
-    if (audio) {
-      fallbackAudioUnlocked = true;
-      const prevVolume = audio.volume;
-      try {
-        audio.volume = 0;
-        audio.src = SILENT_WAV_DATA_URI;
-        const playPromise = audio.play();
-        if (playPromise && typeof playPromise.then === 'function') {
-          playPromise
-            .then(() => {
-              if (!isPlayingFallback) {
-                audio.pause();
-                audio.currentTime = 0;
-                audio.volume = prevVolume;
-              }
-            })
-            .catch(() => {
-              fallbackAudioUnlocked = false;
-              if (!isPlayingFallback) {
-                audio.volume = prevVolume;
-              }
-            });
-        } else if (!isPlayingFallback) {
-          audio.pause();
-          audio.volume = prevVolume;
-        }
-      } catch {
-        fallbackAudioUnlocked = false;
-        audio.volume = prevVolume;
-      }
-    }
-  }
-}
-
-function ensureAudioListeners(): void {
-  if (listenersBound || typeof window === 'undefined') return;
-  listenersBound = true;
+function ensureVoiceListener(): void {
+  if (voiceListenerBound || typeof window === 'undefined') return;
+  voiceListenerBound = true;
 
   refreshVoices();
   if (isSpeechSynthesisSupported()) {
@@ -193,25 +158,10 @@ function ensureAudioListeners(): void {
       synth.onvoiceschanged = refreshVoices;
     }
   }
-
-  const onFirstGesture = () => {
-    unlockAudioOnFirstGesture();
-    if (fallbackAudioUnlocked) {
-      window.removeEventListener('pointerdown', onFirstGesture, true);
-      window.removeEventListener('touchstart', onFirstGesture, true);
-      window.removeEventListener('click', onFirstGesture, true);
-      window.removeEventListener('keydown', onFirstGesture, true);
-    }
-  };
-
-  window.addEventListener('pointerdown', onFirstGesture, { capture: true, passive: true });
-  window.addEventListener('touchstart', onFirstGesture, { capture: true, passive: true });
-  window.addEventListener('click', onFirstGesture, { capture: true, passive: true });
-  window.addEventListener('keydown', onFirstGesture, { capture: true, passive: true });
 }
 
 if (typeof window !== 'undefined') {
-  ensureAudioListeners();
+  ensureVoiceListener();
 }
 
 export function isSpeechSynthesisSupported(): boolean {
@@ -226,7 +176,7 @@ export function splitIntoSpeechChunks(text: string, rate: number = DEFAULT_SPEEC
   const normalized = text.replace(/\s+/g, ' ').trim();
   if (!normalized) return [];
 
-  const maxLen = rate < 0.75 ? 100 : 160;
+  const maxLen = rate < 0.75 ? 100 : 150;
   if (normalized.length <= maxLen) return [normalized];
 
   // iOS-safe sentence split without regex lookbehind
@@ -348,17 +298,16 @@ function pickBestVoice(accent: AccentCode): SpeechSynthesisVoice | undefined {
 export function stopSpeech(): void {
   activeSessionId += 1;
   clearTimers();
-  isPlayingFallback = false;
   activeUtterances.clear();
 
-  if (fallbackAudioEl) {
+  // Keep sharedAudioEl unlocked on iOS Safari: only clear handlers and pause(), never remove src or call load().
+  if (sharedAudioEl) {
     try {
-      fallbackAudioEl.onplaying = null;
-      fallbackAudioEl.onended = null;
-      fallbackAudioEl.onerror = null;
-      fallbackAudioEl.pause();
-      fallbackAudioEl.removeAttribute('src');
-      fallbackAudioEl.load();
+      sharedAudioEl.onloadedmetadata = null;
+      sharedAudioEl.onplaying = null;
+      sharedAudioEl.onended = null;
+      sharedAudioEl.onerror = null;
+      sharedAudioEl.pause();
     } catch {
       /* ignore */
     }
@@ -386,7 +335,7 @@ function buildTtsUrls(chunk: string, accent: AccentCode): string[] {
 }
 
 export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
-  ensureAudioListeners();
+  ensureVoiceListener();
   stopSpeech();
 
   const accent: AccentCode = opts.accent ?? DEFAULT_SPEECH_ACCENT;
@@ -412,7 +361,6 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
     if (endedOnce) return;
     endedOnce = true;
     clearTimers();
-    isPlayingFallback = false;
     activeUtterances.clear();
     opts.onEnd?.();
   };
@@ -420,24 +368,31 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
   const notifyFailure = () => {
     if (sessionId !== activeSessionId) return;
     clearTimers();
-    isPlayingFallback = false;
     opts.onError?.(AUDIO_UNAVAILABLE_MESSAGE);
     notifyEnd();
   };
 
-  const playFallbackFrom = (startIndex: number) => {
+  const playViaHtmlAudio = (startIndex: number, onExhaustedFallback: (failedChunkIdx: number) => void) => {
     if (sessionId !== activeSessionId) return;
 
     clearTimers();
     activeUtterances.clear();
-    const audio = getFallbackAudio();
+    const audio = getSharedAudio();
     if (!audio) {
-      notifyFailure();
+      onExhaustedFallback(startIndex);
       return;
     }
 
-    isPlayingFallback = true;
-    fallbackAudioUnlocked = true;
+    const applyPlaybackRate = () => {
+      try {
+        audio.defaultPlaybackRate = clampedRate;
+        audio.playbackRate = clampedRate;
+        audio.preservesPitch = true;
+        audio.webkitPreservesPitch = true;
+      } catch {
+        /* ignore */
+      }
+    };
 
     const playChunk = (chunkIdx: number, urlIdx: number) => {
       if (sessionId !== activeSessionId) return;
@@ -448,118 +403,130 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
 
       const urls = buildTtsUrls(chunks[chunkIdx], accent);
       if (urlIdx >= urls.length) {
-        notifyFailure();
+        onExhaustedFallback(chunkIdx);
         return;
       }
 
-      const tryNextSourceOrFail = () => {
-        if (sessionId !== activeSessionId) return;
-        if (urlIdx + 1 < urls.length) {
-          playChunk(chunkIdx, urlIdx + 1);
-        } else {
-          notifyFailure();
+      let settled = false;
+      const clearAudioTimeout = () => {
+        if (audioTimeoutTimer !== null) {
+          clearTimeout(audioTimeoutTimer);
+          audioTimeoutTimer = null;
         }
       };
 
-      audio.onplaying = () => {
+      const tryNextSourceOrFallback = () => {
+        if (settled || sessionId !== activeSessionId) return;
+        settled = true;
+        clearAudioTimeout();
+        if (urlIdx + 1 < urls.length) {
+          playChunk(chunkIdx, urlIdx + 1);
+        } else {
+          onExhaustedFallback(chunkIdx);
+        }
+      };
+
+      audio.onloadedmetadata = () => {
         if (sessionId !== activeSessionId) return;
+        applyPlaybackRate();
+      };
+
+      audio.onplaying = () => {
+        clearAudioTimeout();
+        if (sessionId !== activeSessionId) return;
+        applyPlaybackRate();
         notifyStart();
       };
 
       audio.onended = () => {
-        if (sessionId !== activeSessionId) return;
+        clearAudioTimeout();
+        if (settled || sessionId !== activeSessionId) return;
+        settled = true;
         playChunk(chunkIdx + 1, 0);
       };
 
       audio.onerror = () => {
-        tryNextSourceOrFail();
+        tryNextSourceOrFallback();
       };
+
+      clearAudioTimeout();
+      audioTimeoutTimer = setTimeout(() => {
+        if (!settled && sessionId === activeSessionId) {
+          try {
+            audio.pause();
+          } catch {
+            /* ignore */
+          }
+          tryNextSourceOrFallback();
+        }
+      }, 4500);
 
       try {
         audio.volume = 1;
-        audio.defaultPlaybackRate = clampedRate;
-        audio.playbackRate = clampedRate;
-        audio.preservesPitch = true;
-        audio.webkitPreservesPitch = true;
+        applyPlaybackRate();
         audio.src = urls[urlIdx];
         const playPromise = audio.play();
         if (playPromise && typeof playPromise.then === 'function') {
           playPromise
             .then(() => {
               if (sessionId === activeSessionId) {
+                applyPlaybackRate();
                 notifyStart();
               }
             })
             .catch(() => {
-              tryNextSourceOrFail();
+              tryNextSourceOrFallback();
             });
         }
       } catch {
-        tryNextSourceOrFail();
+        tryNextSourceOrFallback();
       }
     };
 
     playChunk(startIndex, 0);
   };
 
-  if (!isSpeechSynthesisSupported()) {
-    playFallbackFrom(0);
-    return;
-  }
-
-  const synth = window.speechSynthesis;
-  let switchedToFallback = false;
-
-  const fallbackNow = (chunkIdx: number) => {
-    if (switchedToFallback || sessionId !== activeSessionId) return;
-    switchedToFallback = true;
-    clearTimers();
-    try {
-      if (synth.speaking || synth.pending || synth.paused) {
-        synth.cancel();
+  const playViaWebSpeech = (startIndex: number, allowHtmlFallback: boolean) => {
+    if (sessionId !== activeSessionId) return;
+    if (!isSpeechSynthesisSupported()) {
+      if (allowHtmlFallback) {
+        playViaHtmlAudio(startIndex, notifyFailure);
+      } else {
+        notifyFailure();
       }
-    } catch {
-      /* ignore */
-    }
-    playFallbackFrom(chunkIdx);
-  };
-
-  const speakWebSpeechChunk = (chunkIdx: number, retriedOnce = false) => {
-    if (switchedToFallback || sessionId !== activeSessionId) return;
-    if (chunkIdx >= chunks.length) {
-      notifyEnd();
       return;
     }
 
-    clearTimers();
+    const synth = window.speechSynthesis;
+    let switchedAway = false;
 
-    try {
-      if (synth.paused) {
-        synth.resume();
+    const handleSpeechFailure = (chunkIdx: number) => {
+      if (switchedAway || sessionId !== activeSessionId) return;
+      switchedAway = true;
+      clearTimers();
+      try {
+        if (synth.speaking || synth.pending || synth.paused) {
+          synth.cancel();
+        }
+      } catch {
+        /* ignore */
       }
-    } catch {
-      /* ignore */
-    }
+      if (allowHtmlFallback) {
+        playViaHtmlAudio(chunkIdx, notifyFailure);
+      } else {
+        notifyFailure();
+      }
+    };
 
-    const utterance = new SpeechSynthesisUtterance(chunks[chunkIdx]);
-    utterance.lang = accent;
-    utterance.rate = clampedRate;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-
-    const voice = pickBestVoice(accent);
-    if (voice) {
-      utterance.voice = voice;
-    }
-
-    let chunkStarted = false;
-    activeUtterances.add(utterance);
-
-    keepAliveTimer = setInterval(() => {
-      if (sessionId !== activeSessionId || switchedToFallback) {
-        clearTimers();
+    const speakChunk = (chunkIdx: number, retriedOnce = false) => {
+      if (switchedAway || sessionId !== activeSessionId) return;
+      if (chunkIdx >= chunks.length) {
+        notifyEnd();
         return;
       }
+
+      clearTimers();
+
       try {
         if (synth.paused) {
           synth.resume();
@@ -567,69 +534,117 @@ export function speakEnglish(text: string, opts: SpeakOptions = {}): void {
       } catch {
         /* ignore */
       }
-    }, 4000);
 
-    const scheduleWatchdog = (delayMs: number, allowRetry: boolean) => {
-      if (watchdogTimer !== null) clearTimeout(watchdogTimer);
-      watchdogTimer = setTimeout(() => {
-        if (sessionId !== activeSessionId || switchedToFallback || chunkStarted) return;
+      const utterance = new SpeechSynthesisUtterance(chunks[chunkIdx]);
+      utterance.lang = accent;
+      utterance.rate = clampedRate;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
 
-        if (allowRetry && !synth.speaking && !synth.pending) {
-          try {
+      const voice = pickBestVoice(accent);
+      if (voice) {
+        utterance.voice = voice;
+      }
+
+      let chunkStarted = false;
+      activeUtterances.add(utterance);
+
+      keepAliveTimer = setInterval(() => {
+        if (sessionId !== activeSessionId || switchedAway) {
+          clearTimers();
+          return;
+        }
+        try {
+          if (synth.paused) {
             synth.resume();
-            synth.speak(utterance);
-            scheduleWatchdog(1100, false);
-            return;
-          } catch {
-            /* fall through to fallback */
           }
+        } catch {
+          /* ignore */
         }
+      }, 4000);
 
-        if (!chunkStarted && !synth.speaking) {
-          fallbackNow(chunkIdx);
+      const scheduleWatchdog = (delayMs: number, allowRetry: boolean) => {
+        if (watchdogTimer !== null) clearTimeout(watchdogTimer);
+        watchdogTimer = setTimeout(() => {
+          if (sessionId !== activeSessionId || switchedAway || chunkStarted) return;
+
+          if (allowRetry && !synth.speaking && !synth.pending) {
+            try {
+              synth.resume();
+              synth.speak(utterance);
+              scheduleWatchdog(2000, false);
+              return;
+            } catch {
+              /* fall through */
+            }
+          }
+
+          if (!chunkStarted && !synth.speaking && !synth.pending) {
+            handleSpeechFailure(chunkIdx);
+          }
+        }, delayMs);
+      };
+
+      utterance.onstart = () => {
+        chunkStarted = true;
+        if (watchdogTimer !== null) {
+          clearTimeout(watchdogTimer);
+          watchdogTimer = null;
         }
-      }, delayMs);
-    };
+        if (sessionId !== activeSessionId || switchedAway) return;
+        notifyStart();
+      };
 
-    utterance.onstart = () => {
-      chunkStarted = true;
-      if (watchdogTimer !== null) {
-        clearTimeout(watchdogTimer);
-        watchdogTimer = null;
+      utterance.onend = () => {
+        activeUtterances.delete(utterance);
+        clearTimers();
+        if (sessionId !== activeSessionId || switchedAway) return;
+        speakChunk(chunkIdx + 1, false);
+      };
+
+      utterance.onerror = (event) => {
+        activeUtterances.delete(utterance);
+        clearTimers();
+        if (sessionId !== activeSessionId || switchedAway) return;
+        const errCode = event?.error;
+        if (errCode === 'canceled' || errCode === 'interrupted') {
+          return;
+        }
+        handleSpeechFailure(chunkIdx);
+      };
+
+      scheduleWatchdog(2000, !retriedOnce);
+
+      try {
+        synth.speak(utterance);
+      } catch {
+        handleSpeechFailure(chunkIdx);
       }
-      if (sessionId !== activeSessionId || switchedToFallback) return;
-      notifyStart();
     };
 
-    utterance.onend = () => {
-      activeUtterances.delete(utterance);
-      clearTimers();
-      if (sessionId !== activeSessionId || switchedToFallback) return;
-      speakWebSpeechChunk(chunkIdx + 1, false);
-    };
-
-    utterance.onerror = (event) => {
-      activeUtterances.delete(utterance);
-      clearTimers();
-      if (sessionId !== activeSessionId || switchedToFallback) return;
-      const errCode = event?.error;
-      if (errCode === 'canceled' || errCode === 'interrupted') {
-        return;
-      }
-      fallbackNow(chunkIdx);
-    };
-
-    scheduleWatchdog(900, !retriedOnce);
-
-    try {
-      // Must be invoked synchronously inside the user gesture for iOS Safari
-      synth.speak(utterance);
-    } catch {
-      fallbackNow(chunkIdx);
-    }
+    speakChunk(startIndex, false);
   };
 
-  speakWebSpeechChunk(0, false);
+  const isOnline = typeof navigator === 'undefined' ? true : navigator.onLine !== false;
+
+  if (isMobileDevice() && isOnline) {
+    // Primary on mobile: synchronous HTML5 <audio> inside the user tap bypasses iOS Silent Switch & broken WebViews.
+    playViaHtmlAudio(0, (failedIdx) => {
+      if (isSpeechSynthesisSupported()) {
+        playViaWebSpeech(failedIdx, false);
+      } else {
+        notifyFailure();
+      }
+    });
+    return;
+  }
+
+  if (isSpeechSynthesisSupported()) {
+    playViaWebSpeech(0, isOnline);
+    return;
+  }
+
+  playViaHtmlAudio(0, notifyFailure);
 }
 
 export function normalizeEnglish(text: string): string {
