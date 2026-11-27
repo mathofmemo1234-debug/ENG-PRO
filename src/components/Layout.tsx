@@ -274,10 +274,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <img
                 src="./logo.png"
                 alt="شعار منصة إتقان الإنجليزية"
-                className="w-11 h-11 rounded-full object-contain bg-white border border-slate-200/90 shadow-xs p-0.5 shrink-0"
+                className="w-16 h-16 sm:w-[74px] sm:h-[74px] rounded-full object-contain bg-white border-2 border-teal-600/20 shadow-md p-0.5 shrink-0"
               />
               <div>
-                <div className="font-extrabold text-sm sm:text-base text-slate-900 leading-tight">
+                <div className="font-extrabold text-base sm:text-lg text-slate-900 leading-tight">
                   منصة إتقان الإنجليزية
                 </div>
               </div>
